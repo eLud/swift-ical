@@ -140,6 +140,26 @@ final class ICalendarRecurrenceTests: XCTestCase {
         ])
     }
 
+    func testExpandsYearlyByMonthMonthDayAndWeekNumber() throws {
+        let event = try parseSingleEvent(
+            rrule: "FREQ=YEARLY;BYMONTH=12;BYMONTHDAY=30;BYWEEKNO=1;UNTIL=20320101",
+            dtstart: "20241230"
+        )
+        let range = try dateRange("20241230T000000Z", "20320101T000000Z")
+        let occurrences = try event.occurrences(
+            between: range.start,
+            and: range.end,
+            timeZoneResolver: RecurrenceTestUTCResolver()
+        )
+
+        XCTAssertEqual(occurrences.map { ymd($0.start) }, [
+            "20241230",
+            "20251230",
+            "20301230",
+            "20311230"
+        ])
+    }
+
     func testExpandsDateOnlyRecurrenceIgnoringTimeParts() throws {
         let event = try parseSingleEvent(
             rrule: "FREQ=DAILY;BYMINUTE=1,2,3,4;INTERVAL=2;COUNT=3",
