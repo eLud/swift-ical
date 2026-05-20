@@ -58,8 +58,8 @@ final class LibicalFixtureTests: XCTestCase {
         let knownGaps = outcomes.filter { !$0.passes }
 
         XCTAssertEqual(cases.count, 146)
-        XCTAssertEqual(supported.count, 78)
-        XCTAssertEqual(knownGaps.count, 68)
+        XCTAssertEqual(supported.count, 103)
+        XCTAssertEqual(knownGaps.count, 43)
         XCTAssertTrue(
             Self.supportedRecurrenceCaseIDs.isSubset(of: Set(supported.map(\.fixture.id))),
             "Curated supported cases must be included in the dynamic compatibility pass set."
@@ -86,16 +86,16 @@ final class LibicalFixtureTests: XCTestCase {
         XCTAssertEqual(
             categoryCounts,
             [
-                .yearlyFrequency: 44,
-                .unsortedOrDuplicateByList: 35,
-                .byWeekNumber: 29,
+                .unsortedOrDuplicateByList: 30,
                 .dateOnlyStart: 26,
+                .yearlyFrequency: 19,
                 .bySetPosition: 16,
-                .negativeSelector: 16,
+                .negativeSelector: 14,
                 .timePartExpansion: 11,
                 .dailyFrequency: 9,
                 .monthlyFrequency: 6,
                 .hourlyFrequency: 5,
+                .byWeekNumber: 4,
                 .weekdayOrdinalSelector: 4,
                 .minutelyFrequency: 2,
                 .weeklyFrequency: 2
@@ -108,12 +108,16 @@ final class LibicalFixtureTests: XCTestCase {
         "Every other year on January, February, and March for 10 occurrences|FREQ=YEARLY;INTERVAL=2;COUNT=10;BYMONTH=1,2,3|19970310T090000",
         "Every third year on the 1st, 100th, and 200th day for 10 occurrences|FREQ=YEARLY;INTERVAL=3;COUNT=10;BYYEARDAY=1,100,200|19970101T090000",
         "Every 20th Monday of the year|FREQ=YEARLY;BYDAY=20MO;COUNT=3|19970519T090000",
+        "Monday of week number 20 (where the default start of the week is Monday)|FREQ=YEARLY;BYWEEKNO=20;BYDAY=MO;COUNT=3|19970512T090000",
+        "Monday of week number 20 (where the start of the week is Sunday)|FREQ=YEARLY;BYWEEKNO=20;BYDAY=MO;WKST=SU;COUNT=3|19970512T090000",
+        "Monday of week number 20 (where the start of the week is Friday)|FREQ=YEARLY;BYWEEKNO=20;BYDAY=MO;WKST=FR;COUNT=3|19970512T090000",
         "Every Thursday in March|FREQ=YEARLY;BYMONTH=3;BYDAY=TH;COUNT=11|19970313T090000",
         "Monthly on the first Friday for 10 occurrences|FREQ=MONTHLY;COUNT=10;BYDAY=1FR|19970905T090000",
         "Monthly on the first Friday until December 24, 1997|FREQ=MONTHLY;UNTIL=19971224T000000Z;BYDAY=1FR|19970905T090000",
         "Monthly on the third-to-last day of the month|FREQ=MONTHLY;BYMONTHDAY=-3;COUNT=6|19970928T090000",
         "Monthly on the 2nd and 15th of the month for 10 occurrences|FREQ=MONTHLY;COUNT=10;BYMONTHDAY=2,15|19970902T090000",
-        "Every Friday the 13th|FREQ=MONTHLY;BYDAY=FR;BYMONTHDAY=13;COUNT=5|19970902T090000"
+        "Every Friday the 13th|FREQ=MONTHLY;BYDAY=FR;BYMONTHDAY=13;COUNT=5|19970902T090000",
+        "github issue1143|FREQ=YEARLY;BYWEEKNO=53;COUNT=1|20230101T000000Z"
     ]
 
     private func validICSFixtureURLs() throws -> [URL] {

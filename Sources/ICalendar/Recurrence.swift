@@ -137,6 +137,7 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZoneResolver.timeZone(for: start.kind)
         calendar.firstWeekday = weekStart.foundationWeekday
+        calendar.minimumDaysInFirstWeek = 4
 
         let startDate = try start.dateValue(timeZoneResolver: timeZoneResolver)
         let untilDate = try until?.dateValue(timeZoneResolver: timeZoneResolver)
@@ -291,6 +292,13 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
             return false
         }
         if !byWeekNo.isEmpty, !matchesWeekNo(components.weekOfYear ?? -1, date: date, calendar: calendar) {
+            return false
+        }
+        if !byWeekNo.isEmpty,
+           byDay.isEmpty,
+           byMonthDay.isEmpty,
+           byYearDay.isEmpty,
+           components.weekday != startComponents.weekday {
             return false
         }
         if !byDay.isEmpty, !matchesWeekday(date, start: start, calendar: calendar) {
