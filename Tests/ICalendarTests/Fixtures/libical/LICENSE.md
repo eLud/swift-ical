@@ -18,3 +18,9 @@ Upstream source and license:
 
 - https://github.com/libical/libical
 - https://github.com/libical/libical/blob/master/LICENSE.txt
+
+Local license text copies:
+
+- `LICENSES/libical-LICENSE.txt`
+- `LICENSES/MPL-2.0.txt`
+- `LICENSES/LGPL-2.1-only.txt`

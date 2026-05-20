@@ -20,6 +20,20 @@ for event in document.events {
 let serialized = try document.serialized()
 ```
 
+## Validation
+
+Parsing is intentionally lossless and permissive: unknown properties, custom
+components, and extensions are preserved. Use `validate()` when you want
+non-blocking structural checks for common RFC 5545 constraints:
+
+```swift
+let issues = document.validate()
+
+for issue in issues {
+    print("\(issue.severity.rawValue): \(issue.message)")
+}
+```
+
 ## Recurrence
 
 ```swift

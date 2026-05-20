@@ -28,3 +28,6 @@ Upstream source and license:
 - https://github.com/libical/libical/blob/master/LICENSE.txt
 - https://github.com/libical/libical/blob/master/LICENSES/MPL-2.0.txt
 - https://github.com/libical/libical/blob/master/LICENSES/LGPL-2.1-only.txt
+
+Local copies of these license texts are included under
+`Tests/ICalendarTests/Fixtures/libical/LICENSES/`.
