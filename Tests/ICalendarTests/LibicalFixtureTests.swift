@@ -35,26 +35,49 @@ final class LibicalFixtureTests: XCTestCase {
                 withExtension: "txt"
             ).unwrap()
         )
-        let supportedDescriptions = Set([
-            "Yearly in June and July for 10 occurrences",
-            "Every other year on January, February, and March for 10 occurrences",
-            "Every third year on the 1st, 100th, and 200th day for 10 occurrences",
-            "Every 20th Monday of the year",
-            "Every Thursday in March",
-            "Monthly on the first Friday for 10 occurrences",
-            "Monthly on the first Friday until December 24, 1997",
-            "Monthly on the third-to-last day of the month",
-            "Monthly on the 2nd and 15th of the month for 10 occurrences",
-            "Every Friday the 13th"
-        ])
-        let selected = cases.filter { supportedDescriptions.contains($0.description) }
+        let selected = cases.filter { Self.supportedRecurrenceCaseIDs.contains($0.id) }
 
-        XCTAssertEqual(selected.count, supportedDescriptions.count)
+        XCTAssertEqual(selected.count, Self.supportedRecurrenceCaseIDs.count)
         for recurrenceCase in selected {
             let actual = try recurrenceCase.expandedInstances()
             XCTAssertEqual(actual, recurrenceCase.instances, recurrenceCase.description)
         }
     }
+
+    func testClassifiesFullLibicalRecurrenceCorpus() throws {
+        let cases = try LibicalRecurrenceFixture.load(
+            Bundle.module.url(
+                forResource: "icalrecur_test",
+                withExtension: "txt"
+            ).unwrap()
+        )
+        let outcomes = cases.map { recurrenceCase in
+            RecurrenceCompatibilityOutcome(fixture: recurrenceCase, actual: try? recurrenceCase.expandedInstances())
+        }
+        let supported = outcomes.filter(\.passes)
+        let knownGaps = outcomes.filter { !$0.passes }
+
+        XCTAssertEqual(cases.count, 146)
+        XCTAssertEqual(supported.count, 78)
+        XCTAssertEqual(knownGaps.count, 68)
+        XCTAssertTrue(
+            Self.supportedRecurrenceCaseIDs.isSubset(of: Set(supported.map(\.fixture.id))),
+            "Curated supported cases must be included in the dynamic compatibility pass set."
+        )
+    }
+
+    private static let supportedRecurrenceCaseIDs: Set<String> = [
+        "Yearly in June and July for 10 occurrences|FREQ=YEARLY;COUNT=10;BYMONTH=6,7|19970610T090000",
+        "Every other year on January, February, and March for 10 occurrences|FREQ=YEARLY;INTERVAL=2;COUNT=10;BYMONTH=1,2,3|19970310T090000",
+        "Every third year on the 1st, 100th, and 200th day for 10 occurrences|FREQ=YEARLY;INTERVAL=3;COUNT=10;BYYEARDAY=1,100,200|19970101T090000",
+        "Every 20th Monday of the year|FREQ=YEARLY;BYDAY=20MO;COUNT=3|19970519T090000",
+        "Every Thursday in March|FREQ=YEARLY;BYMONTH=3;BYDAY=TH;COUNT=11|19970313T090000",
+        "Monthly on the first Friday for 10 occurrences|FREQ=MONTHLY;COUNT=10;BYDAY=1FR|19970905T090000",
+        "Monthly on the first Friday until December 24, 1997|FREQ=MONTHLY;UNTIL=19971224T000000Z;BYDAY=1FR|19970905T090000",
+        "Monthly on the third-to-last day of the month|FREQ=MONTHLY;BYMONTHDAY=-3;COUNT=6|19970928T090000",
+        "Monthly on the 2nd and 15th of the month for 10 occurrences|FREQ=MONTHLY;COUNT=10;BYMONTHDAY=2,15|19970902T090000",
+        "Every Friday the 13th|FREQ=MONTHLY;BYDAY=FR;BYMONTHDAY=13;COUNT=5|19970902T090000"
+    ]
 
     private func validICSFixtureURLs() throws -> [URL] {
         let validNames = Set([
@@ -88,6 +111,10 @@ private struct LibicalRecurrenceFixture {
     var rule: String
     var start: String
     var instances: [String]
+
+    var id: String {
+        "\(description)|\(rule)|\(start)"
+    }
 
     static func load(_ url: URL) throws -> [LibicalRecurrenceFixture] {
         let text = try String(contentsOf: url, encoding: .utf8)
@@ -143,7 +170,7 @@ private struct LibicalRecurrenceFixture {
         """
         let event = try XCTUnwrap(try ICalendarDocument.parse(source).events.first)
         let startDate = try ICalDateTime.parse(start).dateValue(timeZoneResolver: FixedUTCResolver())
-        let rangeEnd = rangeEndDate(startDate: startDate)
+        let rangeEnd = try rangeEndDate(startDate: startDate)
         return try event.occurrences(
             between: startDate.addingTimeInterval(-1),
             and: rangeEnd,
@@ -152,10 +179,16 @@ private struct LibicalRecurrenceFixture {
         .map { format($0.start, like: start) }
     }
 
-    private func rangeEndDate(startDate: Date) -> Date {
+    private func rangeEndDate(startDate: Date) throws -> Date {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
-        return calendar.date(byAdding: .year, value: 50, to: startDate) ?? startDate.addingTimeInterval(50 * 366 * 24 * 60 * 60)
+        guard let lastInstance = instances.last,
+              !lastInstance.hasPrefix("***"),
+              let lastDate = try? ICalDateTime.parse(lastInstance).dateValue(timeZoneResolver: FixedUTCResolver())
+        else {
+            return calendar.date(byAdding: .year, value: 1, to: startDate) ?? startDate.addingTimeInterval(366 * 24 * 60 * 60)
+        }
+        return calendar.date(byAdding: .day, value: 1, to: lastDate) ?? lastDate.addingTimeInterval(24 * 60 * 60)
     }
 
     private func format(_ date: Date, like sample: String) -> String {
@@ -173,6 +206,15 @@ private struct LibicalRecurrenceFixture {
             components.second ?? 0,
             suffix
         )
+    }
+}
+
+private struct RecurrenceCompatibilityOutcome {
+    var fixture: LibicalRecurrenceFixture
+    var actual: [String]?
+
+    var passes: Bool {
+        actual == fixture.instances
     }
 }
 
