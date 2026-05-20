@@ -47,6 +47,23 @@ public struct ICalendarBuilder: Sendable, Equatable {
     }
 }
 
+public enum ICalDateTimeEncoding: Sendable, Equatable {
+    case utc
+    case floating(TimeZone)
+    case timeZone(String)
+
+    public func dateTime(from date: Date) -> ICalDateTime {
+        switch self {
+        case .utc:
+            return .utc(date)
+        case .floating(let timeZone):
+            return .floating(date, timeZone: timeZone)
+        case .timeZone(let identifier):
+            return .timeZone(identifier, date: date)
+        }
+    }
+}
+
 public struct ICalEventBuilder: Sendable, Equatable {
     public var uid: String
     public var start: ICalDateTime
@@ -90,6 +107,40 @@ public struct ICalEventBuilder: Sendable, Equatable {
         self.recurrenceDates = recurrenceDates
         self.exceptionDates = exceptionDates
         self.additionalProperties = additionalProperties
+    }
+
+    public init(
+        uid: String,
+        startDate: Date,
+        stampDate: Date = Date(),
+        endDate: Date? = nil,
+        dateTimeEncoding: ICalDateTimeEncoding = .utc,
+        duration: ICalDuration? = nil,
+        summary: String? = nil,
+        description: String? = nil,
+        location: String? = nil,
+        categories: [String] = [],
+        recurrenceRules: [ICalRecurrenceRule] = [],
+        recurrenceDates: [Date] = [],
+        exceptionDates: [Date] = [],
+        additionalProperties: [ICalProperty] = []
+    ) {
+        let encode = { dateTimeEncoding.dateTime(from: $0) }
+        self.init(
+            uid: uid,
+            start: encode(startDate),
+            stamp: .utc(stampDate),
+            end: endDate.map(encode),
+            duration: duration,
+            summary: summary,
+            description: description,
+            location: location,
+            categories: categories,
+            recurrenceRules: recurrenceRules,
+            recurrenceDates: recurrenceDates.map(encode),
+            exceptionDates: exceptionDates.map(encode),
+            additionalProperties: additionalProperties
+        )
     }
 
     public func component() throws -> ICalComponent {

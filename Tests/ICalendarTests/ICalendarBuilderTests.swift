@@ -136,11 +136,79 @@ final class ICalendarBuilderTests: XCTestCase {
         XCTAssertEqual(try ICalRecurrenceRule.parse(rule.rawValue), rule)
     }
 
+    func testBuilderAcceptsSwiftDateInputsInUTC() throws {
+        let start = try instant("2026-05-19T12:00:00Z")
+        let end = try instant("2026-05-19T13:00:00Z")
+        let stamp = try instant("2026-05-01T09:00:00Z")
+        let recurrenceDate = try instant("2026-05-26T12:00:00Z")
+        let exceptionDate = try instant("2026-06-02T12:00:00Z")
+
+        let document = try ICalendarBuilder(
+            events: [
+                ICalEventBuilder(
+                    uid: "builder-date-utc",
+                    startDate: start,
+                    stampDate: stamp,
+                    endDate: end,
+                    dateTimeEncoding: .utc,
+                    summary: "Date-backed event",
+                    recurrenceDates: [recurrenceDate],
+                    exceptionDates: [exceptionDate]
+                )
+            ]
+        ).document()
+
+        let serialized = try document.serialized()
+        let event = try XCTUnwrap(document.events.first)
+
+        XCTAssertTrue(serialized.contains("DTSTAMP:20260501T090000Z"))
+        XCTAssertTrue(serialized.contains("DTSTART:20260519T120000Z"))
+        XCTAssertTrue(serialized.contains("DTEND:20260519T130000Z"))
+        XCTAssertTrue(serialized.contains("RDATE:20260526T120000Z"))
+        XCTAssertTrue(serialized.contains("EXDATE:20260602T120000Z"))
+        XCTAssertEqual(event.start?.rawValue, "20260519T120000Z")
+    }
+
+    func testBuilderAcceptsSwiftDateInputsWithTimeZoneIdentifier() throws {
+        let start = try instant("2026-05-19T16:00:00Z")
+        let stamp = try instant("2026-05-01T09:00:00Z")
+        let recurrenceDate = try instant("2026-05-26T16:00:00Z")
+
+        let document = try ICalendarBuilder(
+            events: [
+                ICalEventBuilder(
+                    uid: "builder-date-tzid",
+                    startDate: start,
+                    stampDate: stamp,
+                    dateTimeEncoding: .timeZone("America/Toronto"),
+                    recurrenceDates: [recurrenceDate]
+                )
+            ]
+        ).document()
+
+        let serialized = try document.serialized()
+
+        XCTAssertTrue(serialized.contains("DTSTART;TZID=America/Toronto:20260519T120000"))
+        XCTAssertTrue(serialized.contains("RDATE;TZID=America/Toronto:20260526T120000"))
+        XCTAssertTrue(serialized.contains("DTSTAMP:20260501T090000Z"))
+    }
+
     private func dateRange(_ start: String, _ end: String) throws -> (start: Date, end: Date) {
         (
             try ICalDateTime.parse(start).dateValue(timeZoneResolver: FoundationTimeZoneResolver()),
             try ICalDateTime.parse(end).dateValue(timeZoneResolver: FoundationTimeZoneResolver())
         )
+    }
+
+    private func instant(_ value: String) throws -> Date {
+        let formatter = ISO8601DateFormatter()
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.formatOptions = [.withInternetDateTime]
+        guard let date = formatter.date(from: value) else {
+            XCTFail("Failed to parse ISO8601 instant \(value)")
+            return Date(timeIntervalSince1970: 0)
+        }
+        return date
     }
 
     private func iso(_ date: Date) -> String {

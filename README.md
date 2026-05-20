@@ -39,6 +39,24 @@ let document = try ICalendarBuilder(
 let ics = try document.serialized()
 ```
 
+You can also hand the builder native Swift `Date` values and choose how they
+should be encoded in iCalendar:
+
+```swift
+let start = ISO8601DateFormatter().date(from: "2026-05-19T12:00:00Z")!
+
+let document = try ICalendarBuilder(
+    events: [
+        ICalEventBuilder(
+            uid: "event-456",
+            startDate: start,
+            dateTimeEncoding: .utc,
+            summary: "Date-backed event"
+        )
+    ]
+).document()
+```
+
 ## Validation
 
 Parsing is intentionally lossless and permissive: unknown properties, custom
