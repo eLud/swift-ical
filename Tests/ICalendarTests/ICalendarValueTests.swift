@@ -22,6 +22,12 @@ final class ICalendarValueTests: XCTestCase {
         )
     }
 
+    func testRejectsImpossibleGregorianDates() {
+        XCTAssertThrowsError(try ICalDate.parse("20230231"))
+        XCTAssertThrowsError(try ICalDate.parse("20250229"))
+        XCTAssertThrowsError(try ICalDateTime.parse("20230231T120000Z"))
+    }
+
     func testParsesDurationsPeriodsAndOffsets() throws {
         XCTAssertEqual(try ICalDuration.parse("P1DT2H").seconds, 93_600)
         XCTAssertEqual(try ICalDuration.parse("-PT30M").seconds, -1_800)
@@ -34,5 +40,24 @@ final class ICalendarValueTests: XCTestCase {
 
     func testDecodesTextValues() {
         XCTAssertEqual(ICalValue.decodeText("Hello\\nA\\,B\\;C\\\\D"), "Hello\nA,B;C\\D")
+    }
+
+    func testRejectsInvalidRecurrenceNumericSelectors() {
+        let invalidRules = [
+            "FREQ=DAILY;BYSECOND=61",
+            "FREQ=DAILY;BYMINUTE=60",
+            "FREQ=DAILY;BYHOUR=24",
+            "FREQ=YEARLY;BYMONTH=0",
+            "FREQ=MONTHLY;BYMONTHDAY=0",
+            "FREQ=YEARLY;BYYEARDAY=367",
+            "FREQ=YEARLY;BYWEEKNO=-54",
+            "FREQ=MONTHLY;BYSETPOS=0",
+            "FREQ=YEARLY;BYDAY=0MO",
+            "FREQ=YEARLY;BYDAY=54MO"
+        ]
+
+        for rule in invalidRules {
+            XCTAssertThrowsError(try ICalRecurrenceRule.parse(rule), rule)
+        }
     }
 }

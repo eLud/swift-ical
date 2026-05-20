@@ -134,15 +134,15 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
             until: try fields["UNTIL"].map { try dateOrDateTime($0, rawRule: raw) },
             count: try fields["COUNT"].map { try positiveInt($0, rawRule: raw) },
             interval: try fields["INTERVAL"].map { try positiveInt($0, rawRule: raw) } ?? 1,
-            bySecond: try intList(fields["BYSECOND"], rawRule: raw),
-            byMinute: try intList(fields["BYMINUTE"], rawRule: raw),
-            byHour: try intList(fields["BYHOUR"], rawRule: raw),
+            bySecond: try intList(fields["BYSECOND"], range: 0...60, allowsZero: true, rawRule: raw),
+            byMinute: try intList(fields["BYMINUTE"], range: 0...59, allowsZero: true, rawRule: raw),
+            byHour: try intList(fields["BYHOUR"], range: 0...23, allowsZero: true, rawRule: raw),
             byDay: try weekdayList(fields["BYDAY"], rawRule: raw),
-            byMonthDay: try intList(fields["BYMONTHDAY"], rawRule: raw),
-            byYearDay: try intList(fields["BYYEARDAY"], rawRule: raw),
-            byWeekNo: try intList(fields["BYWEEKNO"], rawRule: raw),
-            byMonth: try intList(fields["BYMONTH"], rawRule: raw),
-            bySetPos: try intList(fields["BYSETPOS"], rawRule: raw),
+            byMonthDay: try intList(fields["BYMONTHDAY"], range: -31...31, allowsZero: false, rawRule: raw),
+            byYearDay: try intList(fields["BYYEARDAY"], range: -366...366, allowsZero: false, rawRule: raw),
+            byWeekNo: try intList(fields["BYWEEKNO"], range: -53...53, allowsZero: false, rawRule: raw),
+            byMonth: try intList(fields["BYMONTH"], range: 1...12, allowsZero: false, rawRule: raw),
+            bySetPos: try intList(fields["BYSETPOS"], range: -366...366, allowsZero: false, rawRule: raw),
             weekStart: try fields["WKST"].map { try weekdaySymbol($0, rawRule: raw) } ?? .monday
         )
     }
@@ -783,12 +783,15 @@ private func positiveInt(_ raw: String, rawRule: String) throws -> Int {
     return value
 }
 
-private func intList(_ raw: String?, rawRule: String) throws -> [Int] {
+private func intList(_ raw: String?, range: ClosedRange<Int>, allowsZero: Bool, rawRule: String) throws -> [Int] {
     guard let raw, !raw.isEmpty else {
         return []
     }
     return try raw.split(separator: ",").map {
-        guard let value = Int($0) else {
+        guard let value = Int($0),
+              range.contains(value),
+              (allowsZero || value != 0)
+        else {
             throw ICalendarValueError.invalidRecurrenceRule(rawRule)
         }
         return value
@@ -817,8 +820,13 @@ private func weekdayList(_ raw: String?, rawRule: String) throws -> [ICalRecurre
         let symbol = try weekdaySymbol(symbolText, rawRule: rawRule)
         let prefix = String(text.dropLast(2))
         let ordinal = prefix.isEmpty ? nil : Int(prefix)
-        if !prefix.isEmpty, ordinal == nil {
-            throw ICalendarValueError.invalidRecurrenceRule(rawRule)
+        if !prefix.isEmpty {
+            guard let ordinal,
+                  ordinal != 0,
+                  (-53...53).contains(ordinal)
+            else {
+                throw ICalendarValueError.invalidRecurrenceRule(rawRule)
+            }
         }
         return ICalRecurrenceRule.Weekday(ordinal: ordinal, symbol: symbol)
     }

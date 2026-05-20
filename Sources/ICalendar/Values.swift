@@ -17,7 +17,8 @@ public struct ICalDate: Sendable, Equatable, Hashable, Comparable {
               let month = Int(raw.dropFirst(4).prefix(2)),
               let day = Int(raw.suffix(2)),
               (1...12).contains(month),
-              (1...31).contains(day)
+              (1...31).contains(day),
+              isValidGregorianDate(year: year, month: month, day: day)
         else {
             throw ICalendarValueError.invalidDate(raw)
         }
@@ -31,6 +32,25 @@ public struct ICalDate: Sendable, Equatable, Hashable, Comparable {
     public static func < (lhs: ICalDate, rhs: ICalDate) -> Bool {
         (lhs.year, lhs.month, lhs.day) < (rhs.year, rhs.month, rhs.day)
     }
+}
+
+private func isValidGregorianDate(year: Int, month: Int, day: Int) -> Bool {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+    var components = DateComponents()
+    components.calendar = calendar
+    components.timeZone = calendar.timeZone
+    components.year = year
+    components.month = month
+    components.day = day
+    components.hour = 0
+    components.minute = 0
+    components.second = 0
+    guard let date = calendar.date(from: components) else {
+        return false
+    }
+    let resolved = calendar.dateComponents([.year, .month, .day], from: date)
+    return resolved.year == year && resolved.month == month && resolved.day == day
 }
 
 public struct ICalDateTime: Sendable, Equatable, Hashable, Comparable {
