@@ -14,6 +14,7 @@ public enum KnownICalProperty: String, CaseIterable, Sendable, Hashable {
     case due = "DUE"
     case duration = "DURATION"
     case exdate = "EXDATE"
+    case freebusy = "FREEBUSY"
     case geo = "GEO"
     case lastModified = "LAST-MODIFIED"
     case location = "LOCATION"

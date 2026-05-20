@@ -53,8 +53,9 @@ Tests vendor a starter set of upstream `libical` fixtures:
 - Valid `.ics` files are parsed, serialized, reparsed, and compared for lossless tree equality.
 - One malformed/fuzz-style `.ics` fixture is tracked as an expected parser failure.
 - The upstream `icalrecur_test.txt` file is vendored. All recurrence cases with upstream expected instances currently pass. The single upstream `*** UNIMPLEMENTED` case is tracked separately, and `swift-ical` has its own regression test for that rule.
+- RFC 5545 example fixtures cover representative `VEVENT`, `VTODO`, `VJOURNAL`, `VFREEBUSY`, `VTIMEZONE`, and recurrence examples with parse/serialize/validate checks.
 
-The vendored `libical` fixtures are third-party test data and are not covered by
+The vendored fixture suites are third-party test data and are not covered by
 this project's Apache-2.0 license. See `THIRD_PARTY_NOTICES.md`.
 
 ## Development

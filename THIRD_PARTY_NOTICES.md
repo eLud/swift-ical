@@ -31,3 +31,21 @@ Upstream source and license:
 
 Local copies of these license texts are included under
 `Tests/ICalendarTests/Fixtures/libical/LICENSES/`.
+
+## RFC 5545 example fixtures
+
+The files under `Tests/ICalendarTests/Fixtures/rfc5545/` are test fixtures
+based on examples from RFC 5545, "Internet Calendaring and Scheduling Core
+Object Specification (iCalendar)".
+
+These files are used only by the test suite and are not part of the public
+`ICalendar` runtime library target. RFC 5545 is copyright (c) 2009 IETF Trust
+and the persons identified as the document authors, and is subject to BCP 78 and
+the IETF Trust's Legal Provisions Relating to IETF Documents.
+
+These fixture files are not relicensed under `swift-ical`'s Apache-2.0 license.
+
+RFC source and license information:
+
+- https://www.rfc-editor.org/rfc/rfc5545
+- https://trustee.ietf.org/license-info
