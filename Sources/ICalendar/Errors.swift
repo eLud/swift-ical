@@ -87,3 +87,20 @@ public enum ICalendarValueError: Error, Sendable, Equatable, CustomStringConvert
         }
     }
 }
+
+public enum ICalendarRecurrenceError: Error, Sendable, Equatable, CustomStringConvertible {
+    case occurrenceLimitExceeded(limit: Int)
+    case iterationLimitExceeded(limit: Int)
+    case expansionDurationExceeded(maximum: TimeInterval)
+
+    public var description: String {
+        switch self {
+        case .occurrenceLimitExceeded(let limit):
+            "Recurrence expansion exceeded occurrence limit of \(limit)"
+        case .iterationLimitExceeded(let limit):
+            "Recurrence expansion exceeded iteration limit of \(limit)"
+        case .expansionDurationExceeded(let maximum):
+            "Recurrence expansion exceeded duration limit of \(maximum) seconds"
+        }
+    }
+}

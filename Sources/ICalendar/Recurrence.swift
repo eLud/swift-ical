@@ -1,5 +1,28 @@
 import Foundation
 
+public struct RecurrenceExpansionOptions: Sendable, Equatable {
+    public var maximumOccurrences: Int?
+    public var maximumIterations: Int?
+    public var maximumExpansionDuration: TimeInterval?
+
+    public static let `default` = RecurrenceExpansionOptions()
+    public static let unlimited = RecurrenceExpansionOptions(
+        maximumOccurrences: nil,
+        maximumIterations: nil,
+        maximumExpansionDuration: nil
+    )
+
+    public init(
+        maximumOccurrences: Int? = 100_000,
+        maximumIterations: Int? = 2_000_000,
+        maximumExpansionDuration: TimeInterval? = nil
+    ) {
+        self.maximumOccurrences = maximumOccurrences.map { max(1, $0) }
+        self.maximumIterations = maximumIterations.map { max(1, $0) }
+        self.maximumExpansionDuration = maximumExpansionDuration.map { max(0, $0) }
+    }
+}
+
 public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
     public enum Frequency: String, Sendable, Equatable, Hashable {
         case secondly = "SECONDLY"
@@ -128,7 +151,8 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
         startingAt start: ICalDateTime,
         between rangeStart: Date,
         and rangeEnd: Date,
-        timeZoneResolver: any ICalTimeZoneResolving = FoundationTimeZoneResolver()
+        timeZoneResolver: any ICalTimeZoneResolving = FoundationTimeZoneResolver(),
+        expansionOptions: RecurrenceExpansionOptions = .default
     ) throws -> [Date] {
         guard rangeStart < rangeEnd else {
             return []
@@ -143,13 +167,26 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
         let untilDate = try until?.dateValue(timeZoneResolver: timeZoneResolver)
         let generationEnd = minDate(untilDate, rangeEnd)
         let isDateOnly = start.kind == .date
+        try expansionOptions.validateDuration(from: startDate, to: generationEnd)
 
         var generated: [Date] = []
         switch frequency {
         case .secondly, .minutely, .hourly:
-            generated = try generateSubdaily(from: startDate, through: generationEnd, calendar: calendar, isDateOnly: isDateOnly)
+            generated = try generateSubdaily(
+                from: startDate,
+                through: generationEnd,
+                calendar: calendar,
+                isDateOnly: isDateOnly,
+                expansionOptions: expansionOptions
+            )
         case .daily, .weekly, .monthly, .yearly:
-            generated = try generateByDate(from: startDate, through: generationEnd, calendar: calendar, isDateOnly: isDateOnly)
+            generated = try generateByDate(
+                from: startDate,
+                through: generationEnd,
+                calendar: calendar,
+                isDateOnly: isDateOnly,
+                expansionOptions: expansionOptions
+            )
         }
 
         if let count {
@@ -159,17 +196,31 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
         return generated.filter { $0 >= rangeStart && $0 < rangeEnd }
     }
 
-    private func generateSubdaily(from start: Date, through end: Date, calendar: Calendar, isDateOnly: Bool) throws -> [Date] {
+    private func generateSubdaily(
+        from start: Date,
+        through end: Date,
+        calendar: Calendar,
+        isDateOnly: Bool,
+        expansionOptions: RecurrenceExpansionOptions
+    ) throws -> [Date] {
         var result: [Date] = []
+        var iterations = 0
         let startPeriod = startOfSubdailyPeriod(containing: start, calendar: calendar)
         var period = startOfSubdailyPeriod(containing: start, calendar: calendar)
 
         while period <= end {
+            iterations += 1
+            try expansionOptions.validateIterations(iterations)
             if matchesSubdailyPeriodInterval(period, startPeriod: startPeriod, calendar: calendar),
                matchesDateFilters(period, start: start, calendar: calendar) {
                 let candidates = try subdailyCandidates(in: period, start: start, through: end, calendar: calendar, isDateOnly: isDateOnly)
                 let selected = bySetPos.isEmpty ? candidates : selectedBySetPositions(from: candidates)
-                result.append(contentsOf: selected.filter { $0 >= start })
+                for candidate in selected where candidate >= start {
+                    try append(candidate, to: &result, expansionOptions: expansionOptions)
+                    if hasReachedCount(result) {
+                        return result
+                    }
+                }
             }
             guard let next = calendar.date(byAdding: subdailyPeriodComponent, value: 1, to: period) else {
                 break
@@ -253,11 +304,91 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
         return Array(Set(result)).sorted()
     }
 
-    private func generateByDate(from start: Date, through end: Date, calendar: Calendar, isDateOnly: Bool) throws -> [Date] {
-        var grouped: [PeriodKey: [Date]] = [:]
-        var day = bySetPos.isEmpty ? calendar.startOfDay(for: start) : startOfPeriod(containing: start, calendar: calendar)
+    private func generateByDate(
+        from start: Date,
+        through end: Date,
+        calendar: Calendar,
+        isDateOnly: Bool,
+        expansionOptions: RecurrenceExpansionOptions
+    ) throws -> [Date] {
+        if bySetPos.isEmpty {
+            return try generateByDateWithoutSetPosition(
+                from: start,
+                through: end,
+                calendar: calendar,
+                isDateOnly: isDateOnly,
+                expansionOptions: expansionOptions
+            )
+        }
+
+        return try generateByDateWithSetPosition(
+            from: start,
+            through: end,
+            calendar: calendar,
+            isDateOnly: isDateOnly,
+            expansionOptions: expansionOptions
+        )
+    }
+
+    private func generateByDateWithoutSetPosition(
+        from start: Date,
+        through end: Date,
+        calendar: Calendar,
+        isDateOnly: Bool,
+        expansionOptions: RecurrenceExpansionOptions
+    ) throws -> [Date] {
+        var result: [Date] = []
+        var iterations = 0
+        var day = calendar.startOfDay(for: start)
 
         while day <= end {
+            iterations += 1
+            try expansionOptions.validateIterations(iterations)
+            if matchesFrequencyInterval(day, start: start, calendar: calendar),
+               matchesDateFilters(day, start: start, calendar: calendar) {
+                let times = candidateTimes(start: start, calendar: calendar, isDateOnly: isDateOnly)
+                for time in times {
+                    guard let candidate = calendar.date(
+                        bySettingHour: time.hour,
+                        minute: time.minute,
+                        second: time.second,
+                        of: day
+                    ), candidate <= end,
+                       matchesTimeFilters(candidate, calendar: calendar, isDateOnly: isDateOnly),
+                       candidate >= start
+                    else {
+                        continue
+                    }
+                    try append(candidate, to: &result, expansionOptions: expansionOptions)
+                    if hasReachedCount(result) {
+                        return result
+                    }
+                }
+            }
+            guard let next = calendar.date(byAdding: .day, value: 1, to: day) else {
+                break
+            }
+            day = next
+        }
+
+        return result
+    }
+
+    private func generateByDateWithSetPosition(
+        from start: Date,
+        through end: Date,
+        calendar: Calendar,
+        isDateOnly: Bool,
+        expansionOptions: RecurrenceExpansionOptions
+    ) throws -> [Date] {
+        var grouped: [PeriodKey: [Date]] = [:]
+        var result: [Date] = []
+        var iterations = 0
+        var day = startOfPeriod(containing: start, calendar: calendar)
+
+        while day <= end {
+            iterations += 1
+            try expansionOptions.validateIterations(iterations)
             if matchesFrequencyInterval(day, start: start, calendar: calendar),
                matchesDateFilters(day, start: start, calendar: calendar) {
                 let times = candidateTimes(start: start, calendar: calendar, isDateOnly: isDateOnly)
@@ -278,16 +409,54 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
             guard let next = calendar.date(byAdding: .day, value: 1, to: day) else {
                 break
             }
+            if PeriodKey(date: next, frequency: frequency, calendar: calendar) != PeriodKey(date: day, frequency: frequency, calendar: calendar) {
+                if try appendSelectedSetPositions(from: &grouped, to: &result, start: start, expansionOptions: expansionOptions) {
+                    return result
+                }
+                if hasReachedCount(result) {
+                    return result
+                }
+            }
             day = next
         }
 
-        return grouped.keys.sorted().flatMap { key in
+        _ = try appendSelectedSetPositions(from: &grouped, to: &result, start: start, expansionOptions: expansionOptions)
+        return result
+    }
+
+    private func appendSelectedSetPositions(
+        from grouped: inout [PeriodKey: [Date]],
+        to result: inout [Date],
+        start: Date,
+        expansionOptions: RecurrenceExpansionOptions
+    ) throws -> Bool {
+        for key in grouped.keys.sorted() {
             let candidates = Array(Set(grouped[key] ?? [])).sorted()
-            guard !bySetPos.isEmpty else {
-                return candidates.filter { $0 >= start }
+            for candidate in selectedBySetPositions(from: candidates) where candidate >= start {
+                try append(candidate, to: &result, expansionOptions: expansionOptions)
+                if hasReachedCount(result) {
+                    grouped.removeAll(keepingCapacity: true)
+                    return true
+                }
             }
-            return selectedBySetPositions(from: candidates).filter { $0 >= start }
         }
+        grouped.removeAll(keepingCapacity: true)
+        return false
+    }
+
+    private func append(_ date: Date, to result: inout [Date], expansionOptions: RecurrenceExpansionOptions) throws {
+        if let maximumOccurrences = expansionOptions.maximumOccurrences,
+           result.count >= maximumOccurrences {
+            throw ICalendarRecurrenceError.occurrenceLimitExceeded(limit: maximumOccurrences)
+        }
+        result.append(date)
+    }
+
+    private func hasReachedCount(_ result: [Date]) -> Bool {
+        if let count {
+            return result.count >= count
+        }
+        return false
     }
 
     private func candidateTimes(start: Date, calendar: Calendar, isDateOnly: Bool) -> [(hour: Int, minute: Int, second: Int)] {
@@ -660,4 +829,21 @@ private func weekdaySymbol(_ raw: String, rawRule: String) throws -> ICalRecurre
         throw ICalendarValueError.invalidRecurrenceRule(rawRule)
     }
     return symbol
+}
+
+private extension RecurrenceExpansionOptions {
+    func validateIterations(_ iterations: Int) throws {
+        if let maximumIterations, iterations > maximumIterations {
+            throw ICalendarRecurrenceError.iterationLimitExceeded(limit: maximumIterations)
+        }
+    }
+
+    func validateDuration(from start: Date, to end: Date) throws {
+        guard let maximumExpansionDuration else {
+            return
+        }
+        if end.timeIntervalSince(start) > maximumExpansionDuration {
+            throw ICalendarRecurrenceError.expansionDurationExceeded(maximum: maximumExpansionDuration)
+        }
+    }
 }

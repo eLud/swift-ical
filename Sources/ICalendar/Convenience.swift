@@ -42,7 +42,8 @@ public struct ICalEvent: Sendable, Equatable {
     public func occurrences(
         between start: Date,
         and end: Date,
-        timeZoneResolver: any ICalTimeZoneResolving = FoundationTimeZoneResolver()
+        timeZoneResolver: any ICalTimeZoneResolving = FoundationTimeZoneResolver(),
+        expansionOptions: RecurrenceExpansionOptions = .default
     ) throws -> [ICalOccurrence] {
         guard let eventStart = self.start else {
             return []
@@ -62,7 +63,8 @@ public struct ICalEvent: Sendable, Equatable {
                     startingAt: eventStart,
                     between: start,
                     and: end,
-                    timeZoneResolver: timeZoneResolver
+                    timeZoneResolver: timeZoneResolver,
+                    expansionOptions: expansionOptions
                 )
                 occurrenceStarts.formUnion(dates)
             }

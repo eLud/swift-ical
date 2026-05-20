@@ -18,6 +18,55 @@ final class ICalendarRecurrenceTests: XCTestCase {
         ])
     }
 
+    func testStopsExpansionAfterCountBeforeIterationLimit() throws {
+        let event = try parseSingleEvent(
+            rrule: "FREQ=DAILY;COUNT=1",
+            dtstart: "20260519T090000Z"
+        )
+        let range = try dateRange("20260519T000000Z", "20360519T000000Z")
+        let occurrences = try event.occurrences(
+            between: range.start,
+            and: range.end,
+            expansionOptions: RecurrenceExpansionOptions(maximumOccurrences: 10, maximumIterations: 1)
+        )
+
+        XCTAssertEqual(occurrences.map { iso($0.start) }, [
+            "2026-05-19T09:00:00Z"
+        ])
+    }
+
+    func testThrowsWhenExpansionExceedsIterationLimit() throws {
+        let event = try parseSingleEvent(
+            rrule: "FREQ=DAILY;BYMONTH=12;COUNT=1",
+            dtstart: "20260101T090000Z"
+        )
+        let range = try dateRange("20260101T000000Z", "20270101T000000Z")
+
+        XCTAssertThrowsError(try event.occurrences(
+            between: range.start,
+            and: range.end,
+            expansionOptions: RecurrenceExpansionOptions(maximumOccurrences: 10, maximumIterations: 10)
+        )) { error in
+            XCTAssertEqual(error as? ICalendarRecurrenceError, .iterationLimitExceeded(limit: 10))
+        }
+    }
+
+    func testThrowsWhenExpansionExceedsOccurrenceLimit() throws {
+        let event = try parseSingleEvent(
+            rrule: "FREQ=DAILY",
+            dtstart: "20260519T090000Z"
+        )
+        let range = try dateRange("20260519T000000Z", "20260523T000000Z")
+
+        XCTAssertThrowsError(try event.occurrences(
+            between: range.start,
+            and: range.end,
+            expansionOptions: RecurrenceExpansionOptions(maximumOccurrences: 2, maximumIterations: 10)
+        )) { error in
+            XCTAssertEqual(error as? ICalendarRecurrenceError, .occurrenceLimitExceeded(limit: 2))
+        }
+    }
+
     func testExpandsYearlyByMonthRuleLikeLibicalFixture() throws {
         let event = try parseSingleEvent(
             rrule: "FREQ=YEARLY;COUNT=4;BYMONTH=6,7",
