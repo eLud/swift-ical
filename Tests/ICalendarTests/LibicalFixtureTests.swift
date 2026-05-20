@@ -54,12 +54,21 @@ final class LibicalFixtureTests: XCTestCase {
         let outcomes = cases.map { recurrenceCase in
             RecurrenceCompatibilityOutcome(fixture: recurrenceCase, actual: try? recurrenceCase.expandedInstances())
         }
-        let supported = outcomes.filter(\.passes)
-        let knownGaps = outcomes.filter { !$0.passes }
+        let upstreamUnsupported = outcomes.filter(\.fixture.isUpstreamUnsupported)
+        let implemented = outcomes.filter { !$0.fixture.isUpstreamUnsupported }
+        let supported = implemented.filter(\.passes)
+        let knownGaps = implemented.filter { !$0.passes }
 
         XCTAssertEqual(cases.count, 146)
-        XCTAssertEqual(supported.count, 143)
-        XCTAssertEqual(knownGaps.count, 3)
+        XCTAssertEqual(upstreamUnsupported.count, 1)
+        XCTAssertEqual(supported.count, 145)
+        XCTAssertEqual(
+            knownGaps.count,
+            0,
+            knownGaps.map { outcome in
+                "\(outcome.fixture.id) expected=\(outcome.fixture.instances) actual=\(outcome.actual ?? [])"
+            }.joined(separator: "\n")
+        )
         XCTAssertTrue(
             Self.supportedRecurrenceCaseIDs.isSubset(of: Set(supported.map(\.fixture.id))),
             "Curated supported cases must be included in the dynamic compatibility pass set."
@@ -74,6 +83,7 @@ final class LibicalFixtureTests: XCTestCase {
             ).unwrap()
         )
         let knownGaps = cases
+            .filter { !$0.isUpstreamUnsupported }
             .map { RecurrenceCompatibilityOutcome(fixture: $0, actual: try? $0.expandedInstances()) }
             .filter { !$0.passes }
 
@@ -85,12 +95,7 @@ final class LibicalFixtureTests: XCTestCase {
 
         XCTAssertEqual(
             categoryCounts,
-            [
-                .yearlyFrequency: 3,
-                .byWeekNumber: 3,
-                .dateOnlyStart: 2,
-                .unsortedOrDuplicateByList: 1
-            ]
+            [:]
         )
     }
 
@@ -155,6 +160,12 @@ private struct LibicalRecurrenceFixture {
 
     var id: String {
         "\(description)|\(rule)|\(start)"
+    }
+
+    var isUpstreamUnsupported: Bool {
+        instances.contains {
+            $0.trimmingCharacters(in: .whitespaces).hasPrefix("***")
+        }
     }
 
     var gapCategories: Set<RecurrenceGapCategory> {

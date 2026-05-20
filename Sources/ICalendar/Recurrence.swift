@@ -339,8 +339,11 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
             let months = (dateYear - startYear) * 12 + (dateMonth - startMonth)
             return months >= 0 && months % interval == 0
         case .yearly:
-            let startYear = calendar.component(.year, from: start)
-            let dateYear = calendar.component(.year, from: date)
+            let startMatchesWeekYearRule = !byWeekNo.isEmpty &&
+                matchesDateFilters(start, start: start, calendar: calendar)
+            let component: Calendar.Component = startMatchesWeekYearRule ? .yearForWeekOfYear : .year
+            let startYear = calendar.component(component, from: start)
+            let dateYear = calendar.component(component, from: date)
             let years = dateYear - startYear
             return years >= 0 && years % interval == 0
         }

@@ -89,6 +89,57 @@ final class ICalendarRecurrenceTests: XCTestCase {
         ])
     }
 
+    func testExpandsYearlyByWeekNumberIntervalsUsingWeekYear() throws {
+        let week53 = try parseSingleEvent(
+            rrule: "FREQ=YEARLY;BYWEEKNO=53;BYDAY=TU,SA;INTERVAL=6;UNTIL=20170101T000000Z",
+            dtstart: "20100102T000000"
+        )
+        let week1 = try parseSingleEvent(
+            rrule: "FREQ=YEARLY;BYWEEKNO=1;BYDAY=MO,TU;INTERVAL=3;UNTIL=20320101",
+            dtstart: "20241231"
+        )
+        let week53Interval6FromNonMatchingStart = try parseSingleEvent(
+            rrule: "FREQ=YEARLY;BYWEEKNO=53;INTERVAL=6;BYDAY=TH;COUNT=1",
+            dtstart: "20270103T000000Z"
+        )
+        let week53Interval5FromNonMatchingStart = try parseSingleEvent(
+            rrule: "FREQ=YEARLY;BYWEEKNO=53;INTERVAL=5;BYDAY=TH;COUNT=1",
+            dtstart: "20270103T000000Z"
+        )
+        let week53Range = try dateRange("20100101T000000Z", "20170101T000000Z")
+        let week1Range = try dateRange("20241231T000000Z", "20320101T000000Z")
+        let issue1223Range = try dateRange("20270103T000000Z", "20940102T000000Z")
+
+        XCTAssertEqual(try week53.occurrences(
+            between: week53Range.start,
+            and: week53Range.end,
+            timeZoneResolver: RecurrenceTestUTCResolver()
+        ).map { iso($0.start) }, [
+            "2010-01-02T00:00:00Z",
+            "2015-12-29T00:00:00Z",
+            "2016-01-02T00:00:00Z"
+        ])
+        XCTAssertEqual(try week1.occurrences(between: week1Range.start, and: week1Range.end).map { ymd($0.start) }, [
+            "20241231",
+            "20280103",
+            "20280104",
+            "20301230",
+            "20301231"
+        ])
+        XCTAssertEqual(try week53Interval6FromNonMatchingStart.occurrences(
+            between: issue1223Range.start,
+            and: issue1223Range.end
+        ).map { iso($0.start) }, [
+            "2093-12-31T00:00:00Z"
+        ])
+        XCTAssertEqual(try week53Interval5FromNonMatchingStart.occurrences(
+            between: issue1223Range.start,
+            and: issue1223Range.end
+        ).map { iso($0.start) }, [
+            "2032-12-30T00:00:00Z"
+        ])
+    }
+
     func testExpandsDateOnlyRecurrenceIgnoringTimeParts() throws {
         let event = try parseSingleEvent(
             rrule: "FREQ=DAILY;BYMINUTE=1,2,3,4;INTERVAL=2;COUNT=3",
@@ -281,5 +332,11 @@ final class ICalendarRecurrenceTests: XCTestCase {
             components.month ?? 0,
             components.day ?? 0
         )
+    }
+}
+
+private struct RecurrenceTestUTCResolver: ICalTimeZoneResolving {
+    func timeZone(for kind: ICalDateTime.Kind) -> TimeZone {
+        TimeZone(secondsFromGMT: 0)!
     }
 }
