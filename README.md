@@ -20,6 +20,25 @@ for event in document.events {
 let serialized = try document.serialized()
 ```
 
+## Building Calendars
+
+```swift
+let document = try ICalendarBuilder(
+    prodID: "-//Example Corp//Calendar Demo//EN",
+    events: [
+        ICalEventBuilder(
+            uid: "event-123",
+            start: try ICalDateTime.parse("20260519T120000Z"),
+            stamp: try ICalDateTime.parse("20260501T090000Z"),
+            summary: "Team sync",
+            description: "Weekly planning and blockers"
+        )
+    ]
+).document()
+
+let ics = try document.serialized()
+```
+
 ## Validation
 
 Parsing is intentionally lossless and permissive: unknown properties, custom
