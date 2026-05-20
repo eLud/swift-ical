@@ -35,6 +35,7 @@ public struct ICalDate: Sendable, Equatable, Hashable, Comparable {
 
 public struct ICalDateTime: Sendable, Equatable, Hashable, Comparable {
     public enum Kind: Sendable, Equatable, Hashable {
+        case date
         case floating
         case utc
         case timeZone(String)
@@ -84,6 +85,9 @@ public struct ICalDateTime: Sendable, Equatable, Hashable, Comparable {
     }
 
     public var rawValue: String {
+        if kind == .date {
+            return date.rawValue
+        }
         let base = "\(date.rawValue)T" + String(format: "%02d%02d%02d", hour, minute, second)
         if kind == .utc {
             return base + "Z"
@@ -204,6 +208,8 @@ public struct FoundationTimeZoneResolver: ICalTimeZoneResolving {
 
     public func timeZone(for kind: ICalDateTime.Kind) -> TimeZone {
         switch kind {
+        case .date:
+            TimeZone(secondsFromGMT: 0)!
         case .utc:
             TimeZone(secondsFromGMT: 0)!
         case .floating:

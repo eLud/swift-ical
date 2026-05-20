@@ -47,6 +47,21 @@ final class ICalendarRecurrenceTests: XCTestCase {
         ])
     }
 
+    func testExpandsDateOnlyRecurrenceIgnoringTimeParts() throws {
+        let event = try parseSingleEvent(
+            rrule: "FREQ=DAILY;BYMINUTE=1,2,3,4;INTERVAL=2;COUNT=3",
+            dtstart: "20241018"
+        )
+        let range = try dateRange("20241018T000000Z", "20241025T000000Z")
+        let occurrences = try event.occurrences(between: range.start, and: range.end)
+
+        XCTAssertEqual(occurrences.map { ymd($0.start) }, [
+            "20241018",
+            "20241020",
+            "20241022"
+        ])
+    }
+
     func testExpandsWeeklyByDayRule() throws {
         let event = try parseSingleEvent(
             rrule: "FREQ=WEEKLY;COUNT=4;BYDAY=MO,WE",
@@ -128,5 +143,17 @@ final class ICalendarRecurrenceTests: XCTestCase {
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         formatter.formatOptions = [.withInternetDateTime]
         return formatter.string(from: date)
+    }
+
+    private func ymd(_ date: Date) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        return String(
+            format: "%04d%02d%02d",
+            components.year ?? 0,
+            components.month ?? 0,
+            components.day ?? 0
+        )
     }
 }

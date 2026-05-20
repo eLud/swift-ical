@@ -71,7 +71,7 @@ public struct ICalEvent: Sendable, Equatable {
         for property in component.properties(.rdate) {
             let values = property.rawValue.split(separator: ",").map(String.init)
             for value in values {
-                let dateTime = try ICalDateTime.parse(value, timeZoneID: property.timeZoneID)
+                let dateTime = try property.dateOrDateTimeValue(value)
                 let date = try dateTime.dateValue(timeZoneResolver: timeZoneResolver)
                 if date >= start && date < end {
                     occurrenceStarts.insert(date)
@@ -82,7 +82,7 @@ public struct ICalEvent: Sendable, Equatable {
         for property in component.properties(.exdate) {
             let values = property.rawValue.split(separator: ",").map(String.init)
             for value in values {
-                let dateTime = try ICalDateTime.parse(value, timeZoneID: property.timeZoneID)
+                let dateTime = try property.dateOrDateTimeValue(value)
                 let date = try dateTime.dateValue(timeZoneResolver: timeZoneResolver)
                 occurrenceStarts.remove(date)
             }
@@ -131,10 +131,14 @@ public extension ICalendarDocument {
 
 private extension ICalProperty {
     func dateOrDateTimeValue() throws -> ICalDateTime {
+        try dateOrDateTimeValue(rawValue)
+    }
+
+    func dateOrDateTimeValue(_ rawValue: String) throws -> ICalDateTime {
         if rawValue.contains("T") {
-            return try dateTimeValue()
+            return try ICalDateTime.parse(rawValue, timeZoneID: timeZoneID)
         }
-        let date = try dateValue()
-        return ICalDateTime(date: date, hour: 0, minute: 0, second: 0, kind: .floating)
+        let date = try ICalDate.parse(rawValue)
+        return ICalDateTime(date: date, hour: 0, minute: 0, second: 0, kind: .date)
     }
 }

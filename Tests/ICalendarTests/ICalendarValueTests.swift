@@ -5,6 +5,16 @@ import XCTest
 final class ICalendarValueTests: XCTestCase {
     func testParsesDateTimeKinds() throws {
         XCTAssertEqual(try ICalDate.parse("20260519").rawValue, "20260519")
+        XCTAssertEqual(
+            ICalDateTime(
+                date: ICalDate(year: 2026, month: 5, day: 19),
+                hour: 0,
+                minute: 0,
+                second: 0,
+                kind: .date
+            ).rawValue,
+            "20260519"
+        )
         XCTAssertEqual(try ICalDateTime.parse("20260519T120304Z").kind, .utc)
         XCTAssertEqual(
             try ICalDateTime.parse("20260519T120304", timeZoneID: "America/Toronto").kind,

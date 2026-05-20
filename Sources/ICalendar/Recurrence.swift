@@ -142,13 +142,14 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
         let startDate = try start.dateValue(timeZoneResolver: timeZoneResolver)
         let untilDate = try until?.dateValue(timeZoneResolver: timeZoneResolver)
         let generationEnd = minDate(untilDate, rangeEnd)
+        let isDateOnly = start.kind == .date
 
         var generated: [Date] = []
         switch frequency {
         case .secondly, .minutely, .hourly:
-            generated = try generateSubdaily(from: startDate, through: generationEnd, calendar: calendar)
+            generated = try generateSubdaily(from: startDate, through: generationEnd, calendar: calendar, isDateOnly: isDateOnly)
         case .daily, .weekly, .monthly, .yearly:
-            generated = try generateByDate(from: startDate, through: generationEnd, calendar: calendar)
+            generated = try generateByDate(from: startDate, through: generationEnd, calendar: calendar, isDateOnly: isDateOnly)
         }
 
         if let count {
@@ -158,7 +159,7 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
         return generated.filter { $0 >= rangeStart && $0 < rangeEnd }
     }
 
-    private func generateSubdaily(from start: Date, through end: Date, calendar: Calendar) throws -> [Date] {
+    private func generateSubdaily(from start: Date, through end: Date, calendar: Calendar, isDateOnly: Bool) throws -> [Date] {
         var result: [Date] = []
         var current = start
         let component: Calendar.Component
@@ -170,7 +171,7 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
         }
 
         while current <= end {
-            if matchesFilters(current, start: start, calendar: calendar) {
+            if matchesFilters(current, start: start, calendar: calendar, isDateOnly: isDateOnly) {
                 result.append(current)
             }
             guard let next = calendar.date(byAdding: component, value: interval, to: current) else {
@@ -181,7 +182,7 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
         return result
     }
 
-    private func generateByDate(from start: Date, through end: Date, calendar: Calendar) throws -> [Date] {
+    private func generateByDate(from start: Date, through end: Date, calendar: Calendar, isDateOnly: Bool) throws -> [Date] {
         var grouped: [PeriodKey: [Date]] = [:]
         let startOfStartDay = calendar.startOfDay(for: start)
         var day = startOfStartDay
@@ -189,7 +190,7 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
         while day <= end {
             if matchesFrequencyInterval(day, start: start, calendar: calendar),
                matchesDateFilters(day, start: start, calendar: calendar) {
-                let times = candidateTimes(start: start, calendar: calendar)
+                let times = candidateTimes(start: start, calendar: calendar, isDateOnly: isDateOnly)
                 for time in times {
                     guard let candidate = calendar.date(
                         bySettingHour: time.hour,
@@ -197,7 +198,7 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
                         second: time.second,
                         of: day
                     ), candidate >= start, candidate <= end,
-                       matchesTimeFilters(candidate, calendar: calendar)
+                       matchesTimeFilters(candidate, calendar: calendar, isDateOnly: isDateOnly)
                     else {
                         continue
                     }
@@ -225,8 +226,11 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
         }
     }
 
-    private func candidateTimes(start: Date, calendar: Calendar) -> [(hour: Int, minute: Int, second: Int)] {
+    private func candidateTimes(start: Date, calendar: Calendar, isDateOnly: Bool) -> [(hour: Int, minute: Int, second: Int)] {
         let components = calendar.dateComponents([.hour, .minute, .second], from: start)
+        if isDateOnly {
+            return [(components.hour ?? 0, components.minute ?? 0, components.second ?? 0)]
+        }
         let hours = byHour.isEmpty ? [components.hour ?? 0] : byHour
         let minutes = byMinute.isEmpty ? [components.minute ?? 0] : byMinute
         let seconds = bySecond.isEmpty ? [components.second ?? 0] : bySecond
@@ -239,10 +243,10 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
         }
     }
 
-    private func matchesFilters(_ date: Date, start: Date, calendar: Calendar) -> Bool {
+    private func matchesFilters(_ date: Date, start: Date, calendar: Calendar, isDateOnly: Bool) -> Bool {
         matchesFrequencyInterval(date, start: start, calendar: calendar) &&
             matchesDateFilters(date, start: start, calendar: calendar) &&
-            matchesTimeFilters(date, calendar: calendar)
+            matchesTimeFilters(date, calendar: calendar, isDateOnly: isDateOnly)
     }
 
     private func matchesFrequencyInterval(_ date: Date, start: Date, calendar: Calendar) -> Bool {
@@ -320,7 +324,10 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
         return true
     }
 
-    private func matchesTimeFilters(_ date: Date, calendar: Calendar) -> Bool {
+    private func matchesTimeFilters(_ date: Date, calendar: Calendar, isDateOnly: Bool) -> Bool {
+        if isDateOnly {
+            return true
+        }
         let components = calendar.dateComponents([.hour, .minute, .second], from: date)
         if !byHour.isEmpty, !byHour.contains(components.hour ?? -1) {
             return false
