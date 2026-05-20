@@ -38,9 +38,10 @@ Tests vendor a starter set of upstream `libical` fixtures:
 
 - Valid `.ics` files are parsed, serialized, reparsed, and compared for lossless tree equality.
 - One malformed/fuzz-style `.ics` fixture is tracked as an expected parser failure.
-- The upstream `icalrecur_test.txt` file is vendored, with a curated set of currently supported recurrence cases asserted against golden instances.
+- The upstream `icalrecur_test.txt` file is vendored. All recurrence cases with upstream expected instances currently pass. The single upstream `*** UNIMPLEMENTED` case is tracked separately, and `swift-ical` has its own regression test for that rule.
 
-The next compatibility milestone is to classify the full recurrence fixture file into supported cases and known gaps, then turn those gaps into passing cases incrementally.
+The vendored `libical` fixtures are third-party test data and are not covered by
+this project's Apache-2.0 license. See `THIRD_PARTY_NOTICES.md`.
 
 ## Development
 
@@ -49,3 +50,15 @@ swift test
 ```
 
 CI runs `swift build` and `swift test` on macOS and Ubuntu.
+
+## License
+
+`swift-ical` runtime source code is licensed under the Apache License, Version
+2.0. See `LICENSE`.
+
+Third-party `libical` test fixtures under
+`Tests/ICalendarTests/Fixtures/libical/` remain under the upstream `libical`
+license terms and are not relicensed as Apache-2.0 by this project. They are
+used only for tests and are not part of the public `ICalendar` runtime library.
+See `THIRD_PARTY_NOTICES.md` and
+`Tests/ICalendarTests/Fixtures/libical/LICENSE.md`.
