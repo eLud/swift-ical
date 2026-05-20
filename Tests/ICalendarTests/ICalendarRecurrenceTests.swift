@@ -104,6 +104,22 @@ final class ICalendarRecurrenceTests: XCTestCase {
         ])
     }
 
+    func testExpandsDateOnlyUntilRecurrence() throws {
+        let event = try parseSingleEvent(
+            rrule: "FREQ=DAILY;BYMONTHDAY=20,-2;UNTIL=20250401",
+            dtstart: "20250220"
+        )
+        let range = try dateRange("20250220T000000Z", "20250402T000000Z")
+        let occurrences = try event.occurrences(between: range.start, and: range.end)
+
+        XCTAssertEqual(occurrences.map { ymd($0.start) }, [
+            "20250220",
+            "20250227",
+            "20250320",
+            "20250330"
+        ])
+    }
+
     func testExpandsWeeklyByDayRule() throws {
         let event = try parseSingleEvent(
             rrule: "FREQ=WEEKLY;COUNT=4;BYDAY=MO,WE",

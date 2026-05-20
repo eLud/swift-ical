@@ -108,7 +108,7 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
 
         return ICalRecurrenceRule(
             frequency: frequency,
-            until: try fields["UNTIL"].map { try ICalDateTime.parse($0) },
+            until: try fields["UNTIL"].map { try dateOrDateTime($0, rawRule: raw) },
             count: try fields["COUNT"].map { try positiveInt($0, rawRule: raw) },
             interval: try fields["INTERVAL"].map { try positiveInt($0, rawRule: raw) } ?? 1,
             bySecond: try intList(fields["BYSECOND"], rawRule: raw),
@@ -646,6 +646,18 @@ private func intList(_ raw: String?, rawRule: String) throws -> [Int] {
             throw ICalendarValueError.invalidRecurrenceRule(rawRule)
         }
         return value
+    }
+}
+
+private func dateOrDateTime(_ raw: String, rawRule: String) throws -> ICalDateTime {
+    if raw.contains("T") {
+        return try ICalDateTime.parse(raw)
+    }
+    do {
+        let date = try ICalDate.parse(raw)
+        return ICalDateTime(date: date, hour: 0, minute: 0, second: 0, kind: .date)
+    } catch {
+        throw ICalendarValueError.invalidRecurrenceRule(rawRule)
     }
 }
 
