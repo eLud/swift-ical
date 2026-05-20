@@ -184,8 +184,7 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
 
     private func generateByDate(from start: Date, through end: Date, calendar: Calendar, isDateOnly: Bool) throws -> [Date] {
         var grouped: [PeriodKey: [Date]] = [:]
-        let startOfStartDay = calendar.startOfDay(for: start)
-        var day = startOfStartDay
+        var day = bySetPos.isEmpty ? calendar.startOfDay(for: start) : startOfPeriod(containing: start, calendar: calendar)
 
         while day <= end {
             if matchesFrequencyInterval(day, start: start, calendar: calendar),
@@ -197,7 +196,7 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
                         minute: time.minute,
                         second: time.second,
                         of: day
-                    ), candidate >= start, candidate <= end,
+                    ), candidate <= end,
                        matchesTimeFilters(candidate, calendar: calendar, isDateOnly: isDateOnly)
                     else {
                         continue
@@ -212,17 +211,17 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
         }
 
         return grouped.keys.sorted().flatMap { key in
-            let candidates = (grouped[key] ?? []).sorted()
+            let candidates = Array(Set(grouped[key] ?? [])).sorted()
             guard !bySetPos.isEmpty else {
-                return candidates
+                return candidates.filter { $0 >= start }
             }
-            return bySetPos.compactMap { position in
+            return Array(Set(bySetPos.compactMap { position in
                 let index = position > 0 ? position - 1 : candidates.count + position
                 guard candidates.indices.contains(index) else {
                     return nil
                 }
                 return candidates[index]
-            }
+            })).sorted().filter { $0 >= start }
         }
     }
 
@@ -405,6 +404,20 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
     private func startOfWeek(for date: Date, calendar: Calendar) -> Date {
         calendar.dateInterval(of: .weekOfYear, for: date)?.start ?? calendar.startOfDay(for: date)
     }
+
+    private func startOfPeriod(containing date: Date, calendar: Calendar) -> Date {
+        switch frequency {
+        case .yearly:
+            return calendar.dateInterval(of: .year, for: date)?.start ?? calendar.startOfDay(for: date)
+        case .monthly:
+            return calendar.dateInterval(of: .month, for: date)?.start ?? calendar.startOfDay(for: date)
+        case .weekly:
+            return startOfWeek(for: date, calendar: calendar)
+        default:
+            return calendar.startOfDay(for: date)
+        }
+    }
+
 }
 
 private struct PeriodKey: Hashable, Comparable {

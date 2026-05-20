@@ -58,8 +58,8 @@ final class LibicalFixtureTests: XCTestCase {
         let knownGaps = outcomes.filter { !$0.passes }
 
         XCTAssertEqual(cases.count, 146)
-        XCTAssertEqual(supported.count, 120)
-        XCTAssertEqual(knownGaps.count, 26)
+        XCTAssertEqual(supported.count, 131)
+        XCTAssertEqual(knownGaps.count, 15)
         XCTAssertTrue(
             Self.supportedRecurrenceCaseIDs.isSubset(of: Set(supported.map(\.fixture.id))),
             "Curated supported cases must be included in the dynamic compatibility pass set."
@@ -86,19 +86,17 @@ final class LibicalFixtureTests: XCTestCase {
         XCTAssertEqual(
             categoryCounts,
             [
-                .unsortedOrDuplicateByList: 17,
-                .bySetPosition: 16,
-                .negativeSelector: 12,
-                .yearlyFrequency: 11,
-                .timePartExpansion: 10,
-                .dateOnlyStart: 9,
+                .negativeSelector: 9,
+                .yearlyFrequency: 7,
+                .timePartExpansion: 7,
+                .unsortedOrDuplicateByList: 6,
+                .bySetPosition: 6,
+                .dateOnlyStart: 5,
                 .hourlyFrequency: 5,
-                .monthlyFrequency: 4,
-                .weekdayOrdinalSelector: 4,
                 .byWeekNumber: 3,
-                .dailyFrequency: 2,
+                .weekdayOrdinalSelector: 2,
                 .minutelyFrequency: 2,
-                .weeklyFrequency: 2
+                .dailyFrequency: 1
             ]
         )
     }
@@ -118,6 +116,7 @@ final class LibicalFixtureTests: XCTestCase {
         "Monthly on the 2nd and 15th of the month for 10 occurrences|FREQ=MONTHLY;COUNT=10;BYMONTHDAY=2,15|19970902T090000",
         "Every Friday the 13th|FREQ=MONTHLY;BYDAY=FR;BYMONTHDAY=13;COUNT=5|19970902T090000",
         "time-related BY* should be ignored if DTSTART is date-only|FREQ=DAILY;BYMINUTE=1,2,3,4;INTERVAL=2;COUNT=3|20241018",
+        "Weekly on Tuesday and Thursday|FREQ=WEEKLY;BYDAY=MO,TU,SU,SA,TH;BYSETPOS=3,2;COUNT=4|20240102T120000",
         "github issue1143|FREQ=YEARLY;BYWEEKNO=53;COUNT=1|20230101T000000Z"
     ]
 

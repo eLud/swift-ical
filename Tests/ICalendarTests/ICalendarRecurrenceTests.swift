@@ -93,6 +93,22 @@ final class ICalendarRecurrenceTests: XCTestCase {
         ])
     }
 
+    func testExpandsWeeklyBySetPositionUsingFullPeriodCandidates() throws {
+        let event = try parseSingleEvent(
+            rrule: "FREQ=WEEKLY;BYDAY=MO,TU,SU,SA,TH;BYSETPOS=3,2;COUNT=4",
+            dtstart: "20240102T120000Z"
+        )
+        let range = try dateRange("20240101T000000Z", "20240120T000000Z")
+        let occurrences = try event.occurrences(between: range.start, and: range.end)
+
+        XCTAssertEqual(occurrences.map { iso($0.start) }, [
+            "2024-01-02T12:00:00Z",
+            "2024-01-04T12:00:00Z",
+            "2024-01-09T12:00:00Z",
+            "2024-01-11T12:00:00Z"
+        ])
+    }
+
     func testAppliesRDateAndExDate() throws {
         let source = """
         BEGIN:VCALENDAR
