@@ -58,8 +58,8 @@ final class LibicalFixtureTests: XCTestCase {
         let knownGaps = outcomes.filter { !$0.passes }
 
         XCTAssertEqual(cases.count, 146)
-        XCTAssertEqual(supported.count, 137)
-        XCTAssertEqual(knownGaps.count, 9)
+        XCTAssertEqual(supported.count, 139)
+        XCTAssertEqual(knownGaps.count, 7)
         XCTAssertTrue(
             Self.supportedRecurrenceCaseIDs.isSubset(of: Set(supported.map(\.fixture.id))),
             "Curated supported cases must be included in the dynamic compatibility pass set."
@@ -86,12 +86,11 @@ final class LibicalFixtureTests: XCTestCase {
         XCTAssertEqual(
             categoryCounts,
             [
-                .yearlyFrequency: 7,
+                .yearlyFrequency: 5,
                 .dateOnlyStart: 5,
                 .unsortedOrDuplicateByList: 4,
-                .negativeSelector: 3,
                 .byWeekNumber: 3,
-                .weekdayOrdinalSelector: 2,
+                .negativeSelector: 2,
                 .hourlyFrequency: 1,
                 .timePartExpansion: 1,
                 .dailyFrequency: 1
@@ -107,6 +106,8 @@ final class LibicalFixtureTests: XCTestCase {
         "Monday of week number 20 (where the default start of the week is Monday)|FREQ=YEARLY;BYWEEKNO=20;BYDAY=MO;COUNT=3|19970512T090000",
         "Monday of week number 20 (where the start of the week is Sunday)|FREQ=YEARLY;BYWEEKNO=20;BYDAY=MO;WKST=SU;COUNT=3|19970512T090000",
         "Monday of week number 20 (where the start of the week is Friday)|FREQ=YEARLY;BYWEEKNO=20;BYDAY=MO;WKST=FR;COUNT=3|19970512T090000",
+        "CalendarServer test: Last Friday in October|FREQ=YEARLY;BYDAY=-1FR;BYMONTH=10;UNTIL=20150101T000000Z|20101029T120000",
+        "CalendarServer test: First Friday in April|FREQ=YEARLY;BYDAY=1FR;BYMONTH=4;UNTIL=20150101T000000Z|20100402T120000",
         "Every Thursday in March|FREQ=YEARLY;BYMONTH=3;BYDAY=TH;COUNT=11|19970313T090000",
         "Monthly on the first Friday for 10 occurrences|FREQ=MONTHLY;COUNT=10;BYDAY=1FR|19970905T090000",
         "Monthly on the first Friday until December 24, 1997|FREQ=MONTHLY;UNTIL=19971224T000000Z;BYDAY=1FR|19970905T090000",

@@ -464,7 +464,8 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
             }
             switch frequency {
             case .yearly:
-                return nthWeekdayOrdinal(in: .year, for: date, calendar: calendar) == ordinal
+                let ordinalScope: Calendar.Component = byMonth.isEmpty ? .year : .month
+                return nthWeekdayOrdinal(in: ordinalScope, for: date, calendar: calendar) == ordinal
             default:
                 return nthWeekdayOrdinal(in: .month, for: date, calendar: calendar) == ordinal
             }

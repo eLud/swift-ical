@@ -34,6 +34,33 @@ final class ICalendarRecurrenceTests: XCTestCase {
         ])
     }
 
+    func testExpandsYearlyOrdinalWeekdayWithinByMonth() throws {
+        let firstFriday = try parseSingleEvent(
+            rrule: "FREQ=YEARLY;BYDAY=1FR;BYMONTH=4;UNTIL=20150101T000000Z",
+            dtstart: "20100402T120000Z"
+        )
+        let lastFriday = try parseSingleEvent(
+            rrule: "FREQ=YEARLY;BYDAY=-1FR;BYMONTH=10;UNTIL=20150101T000000Z",
+            dtstart: "20101029T120000Z"
+        )
+        let range = try dateRange("20100101T000000Z", "20150101T000000Z")
+
+        XCTAssertEqual(try firstFriday.occurrences(between: range.start, and: range.end).map { iso($0.start) }, [
+            "2010-04-02T12:00:00Z",
+            "2011-04-01T12:00:00Z",
+            "2012-04-06T12:00:00Z",
+            "2013-04-05T12:00:00Z",
+            "2014-04-04T12:00:00Z"
+        ])
+        XCTAssertEqual(try lastFriday.occurrences(between: range.start, and: range.end).map { iso($0.start) }, [
+            "2010-10-29T12:00:00Z",
+            "2011-10-28T12:00:00Z",
+            "2012-10-26T12:00:00Z",
+            "2013-10-25T12:00:00Z",
+            "2014-10-31T12:00:00Z"
+        ])
+    }
+
     func testExpandsYearlyByWeekNumberUsingRFCWeekOne() throws {
         let event = try parseSingleEvent(
             rrule: "FREQ=YEARLY;BYWEEKNO=53;COUNT=1",
