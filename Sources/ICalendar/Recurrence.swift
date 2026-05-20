@@ -379,6 +379,14 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
         if !byMonth.isEmpty, !byMonth.contains(components.month ?? -1) {
             return false
         }
+        if frequency == .yearly,
+           byMonth.isEmpty,
+           !byMonthDay.isEmpty,
+           byYearDay.isEmpty,
+           byWeekNo.isEmpty,
+           components.month != startComponents.month {
+            return false
+        }
         if !byMonthDay.isEmpty, !matchesMonthDay(components.day ?? -1, date: date, calendar: calendar) {
             return false
         }

@@ -61,6 +61,21 @@ final class ICalendarRecurrenceTests: XCTestCase {
         ])
     }
 
+    func testExpandsYearlyByMonthDayUsingStartMonthWhenByMonthIsAbsent() throws {
+        let event = try parseSingleEvent(
+            rrule: "FREQ=YEARLY;BYMONTHDAY=29;COUNT=3",
+            dtstart: "20240229"
+        )
+        let range = try dateRange("20240229T000000Z", "20330101T000000Z")
+        let occurrences = try event.occurrences(between: range.start, and: range.end)
+
+        XCTAssertEqual(occurrences.map { ymd($0.start) }, [
+            "20240229",
+            "20280229",
+            "20320229"
+        ])
+    }
+
     func testExpandsYearlyByWeekNumberUsingRFCWeekOne() throws {
         let event = try parseSingleEvent(
             rrule: "FREQ=YEARLY;BYWEEKNO=53;COUNT=1",

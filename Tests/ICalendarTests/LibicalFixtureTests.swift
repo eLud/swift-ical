@@ -58,8 +58,8 @@ final class LibicalFixtureTests: XCTestCase {
         let knownGaps = outcomes.filter { !$0.passes }
 
         XCTAssertEqual(cases.count, 146)
-        XCTAssertEqual(supported.count, 139)
-        XCTAssertEqual(knownGaps.count, 7)
+        XCTAssertEqual(supported.count, 141)
+        XCTAssertEqual(knownGaps.count, 5)
         XCTAssertTrue(
             Self.supportedRecurrenceCaseIDs.isSubset(of: Set(supported.map(\.fixture.id))),
             "Curated supported cases must be included in the dynamic compatibility pass set."
@@ -86,11 +86,11 @@ final class LibicalFixtureTests: XCTestCase {
         XCTAssertEqual(
             categoryCounts,
             [
-                .yearlyFrequency: 5,
-                .dateOnlyStart: 5,
-                .unsortedOrDuplicateByList: 4,
+                .yearlyFrequency: 3,
+                .dateOnlyStart: 3,
+                .unsortedOrDuplicateByList: 3,
                 .byWeekNumber: 3,
-                .negativeSelector: 2,
+                .negativeSelector: 1,
                 .hourlyFrequency: 1,
                 .timePartExpansion: 1,
                 .dailyFrequency: 1
@@ -109,6 +109,8 @@ final class LibicalFixtureTests: XCTestCase {
         "CalendarServer test: Last Friday in October|FREQ=YEARLY;BYDAY=-1FR;BYMONTH=10;UNTIL=20150101T000000Z|20101029T120000",
         "CalendarServer test: First Friday in April|FREQ=YEARLY;BYDAY=1FR;BYMONTH=4;UNTIL=20150101T000000Z|20100402T120000",
         "Every Thursday in March|FREQ=YEARLY;BYMONTH=3;BYDAY=TH;COUNT=11|19970313T090000",
+        "yearly, by Feb 29th day of month|FREQ=YEARLY;BYMONTHDAY=29;COUNT=3|20240229",
+        "yearly, by last and -29th of Feb|FREQ=YEARLY;BYMONTHDAY=-29,-1;COUNT=4|20240201",
         "Monthly on the first Friday for 10 occurrences|FREQ=MONTHLY;COUNT=10;BYDAY=1FR|19970905T090000",
         "Monthly on the first Friday until December 24, 1997|FREQ=MONTHLY;UNTIL=19971224T000000Z;BYDAY=1FR|19970905T090000",
         "Monthly on the third-to-last day of the month|FREQ=MONTHLY;BYMONTHDAY=-3;COUNT=6|19970928T090000",
