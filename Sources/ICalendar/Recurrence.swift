@@ -160,33 +160,6 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
     }
 
     private func generateSubdaily(from start: Date, through end: Date, calendar: Calendar, isDateOnly: Bool) throws -> [Date] {
-        if !bySetPos.isEmpty {
-            return try generateSubdailyByPeriod(from: start, through: end, calendar: calendar, isDateOnly: isDateOnly)
-        }
-
-        var result: [Date] = []
-        var current = start
-        let component: Calendar.Component
-        switch frequency {
-        case .secondly: component = .second
-        case .minutely: component = .minute
-        case .hourly: component = .hour
-        default: throw ICalendarValueError.unsupportedRecurrence(frequency.rawValue)
-        }
-
-        while current <= end {
-            if matchesFilters(current, start: start, calendar: calendar, isDateOnly: isDateOnly) {
-                result.append(current)
-            }
-            guard let next = calendar.date(byAdding: component, value: interval, to: current) else {
-                break
-            }
-            current = next
-        }
-        return result
-    }
-
-    private func generateSubdailyByPeriod(from start: Date, through end: Date, calendar: Calendar, isDateOnly: Bool) throws -> [Date] {
         var result: [Date] = []
         let startPeriod = startOfSubdailyPeriod(containing: start, calendar: calendar)
         var period = startOfSubdailyPeriod(containing: start, calendar: calendar)
@@ -195,7 +168,8 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
             if matchesSubdailyPeriodInterval(period, startPeriod: startPeriod, calendar: calendar),
                matchesDateFilters(period, start: start, calendar: calendar) {
                 let candidates = try subdailyCandidates(in: period, start: start, through: end, calendar: calendar, isDateOnly: isDateOnly)
-                result.append(contentsOf: selectedBySetPositions(from: candidates).filter { $0 >= start })
+                let selected = bySetPos.isEmpty ? candidates : selectedBySetPositions(from: candidates)
+                result.append(contentsOf: selected.filter { $0 >= start })
             }
             guard let next = calendar.date(byAdding: subdailyPeriodComponent, value: 1, to: period) else {
                 break

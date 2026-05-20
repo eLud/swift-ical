@@ -58,8 +58,8 @@ final class LibicalFixtureTests: XCTestCase {
         let knownGaps = outcomes.filter { !$0.passes }
 
         XCTAssertEqual(cases.count, 146)
-        XCTAssertEqual(supported.count, 142)
-        XCTAssertEqual(knownGaps.count, 4)
+        XCTAssertEqual(supported.count, 143)
+        XCTAssertEqual(knownGaps.count, 3)
         XCTAssertTrue(
             Self.supportedRecurrenceCaseIDs.isSubset(of: Set(supported.map(\.fixture.id))),
             "Curated supported cases must be included in the dynamic compatibility pass set."
@@ -89,9 +89,7 @@ final class LibicalFixtureTests: XCTestCase {
                 .yearlyFrequency: 3,
                 .byWeekNumber: 3,
                 .dateOnlyStart: 2,
-                .unsortedOrDuplicateByList: 2,
-                .hourlyFrequency: 1,
-                .timePartExpansion: 1
+                .unsortedOrDuplicateByList: 1
             ]
         )
     }
@@ -118,6 +116,7 @@ final class LibicalFixtureTests: XCTestCase {
         "time-related BY* should be ignored if DTSTART is date-only|FREQ=DAILY;BYMINUTE=1,2,3,4;INTERVAL=2;COUNT=3|20241018",
         "Weekly on Tuesday and Thursday|FREQ=WEEKLY;BYDAY=MO,TU,SU,SA,TH;BYSETPOS=3,2;COUNT=4|20240102T120000",
         "The 20th and 40th minutes in an hour, every other hour|FREQ=HOURLY;BYMINUTE=0,10,20,30,40,50;BYSETPOS=-2,3;INTERVAL=2;COUNT=5|20241023T154000",
+        "github issue1230|FREQ=HOURLY;BYHOUR=3,6;BYMINUTE=5,15,25;INTERVAL=7;COUNT=6|20250101T030500",
         "github issue1143|FREQ=YEARLY;BYWEEKNO=53;COUNT=1|20230101T000000Z"
     ]
 

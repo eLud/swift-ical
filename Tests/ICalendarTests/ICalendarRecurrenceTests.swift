@@ -184,6 +184,24 @@ final class ICalendarRecurrenceTests: XCTestCase {
         ])
     }
 
+    func testExpandsHourlyByMinuteCandidatesAcrossIntervalBuckets() throws {
+        let event = try parseSingleEvent(
+            rrule: "FREQ=HOURLY;BYHOUR=3,6;BYMINUTE=5,15,25;INTERVAL=7;COUNT=6",
+            dtstart: "20250101T030500Z"
+        )
+        let range = try dateRange("20250101T000000Z", "20250108T000000Z")
+        let occurrences = try event.occurrences(between: range.start, and: range.end)
+
+        XCTAssertEqual(occurrences.map { iso($0.start) }, [
+            "2025-01-01T03:05:00Z",
+            "2025-01-01T03:15:00Z",
+            "2025-01-01T03:25:00Z",
+            "2025-01-07T06:05:00Z",
+            "2025-01-07T06:15:00Z",
+            "2025-01-07T06:25:00Z"
+        ])
+    }
+
     func testExpandsMinutelyBySetPositionUsingFullMinuteCandidates() throws {
         let event = try parseSingleEvent(
             rrule: "FREQ=MINUTELY;BYSECOND=0,10,20,30,40,50;BYSETPOS=-2,3;INTERVAL=2;COUNT=5",
