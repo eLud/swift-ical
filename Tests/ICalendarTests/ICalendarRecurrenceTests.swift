@@ -109,6 +109,40 @@ final class ICalendarRecurrenceTests: XCTestCase {
         ])
     }
 
+    func testExpandsHourlyBySetPositionUsingFullHourCandidates() throws {
+        let event = try parseSingleEvent(
+            rrule: "FREQ=HOURLY;BYMINUTE=0,10,20,30,40,50;BYSETPOS=-2,3;INTERVAL=2;COUNT=5",
+            dtstart: "20241023T154000Z"
+        )
+        let range = try dateRange("20241023T150000Z", "20241023T210000Z")
+        let occurrences = try event.occurrences(between: range.start, and: range.end)
+
+        XCTAssertEqual(occurrences.map { iso($0.start) }, [
+            "2024-10-23T15:40:00Z",
+            "2024-10-23T17:20:00Z",
+            "2024-10-23T17:40:00Z",
+            "2024-10-23T19:20:00Z",
+            "2024-10-23T19:40:00Z"
+        ])
+    }
+
+    func testExpandsMinutelyBySetPositionUsingFullMinuteCandidates() throws {
+        let event = try parseSingleEvent(
+            rrule: "FREQ=MINUTELY;BYSECOND=0,10,20,30,40,50;BYSETPOS=-2,3;INTERVAL=2;COUNT=5",
+            dtstart: "20241023T001540Z"
+        )
+        let range = try dateRange("20241023T001500Z", "20241023T002100Z")
+        let occurrences = try event.occurrences(between: range.start, and: range.end)
+
+        XCTAssertEqual(occurrences.map { iso($0.start) }, [
+            "2024-10-23T00:15:40Z",
+            "2024-10-23T00:17:20Z",
+            "2024-10-23T00:17:40Z",
+            "2024-10-23T00:19:20Z",
+            "2024-10-23T00:19:40Z"
+        ])
+    }
+
     func testAppliesRDateAndExDate() throws {
         let source = """
         BEGIN:VCALENDAR

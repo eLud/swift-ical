@@ -160,6 +160,10 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
     }
 
     private func generateSubdaily(from start: Date, through end: Date, calendar: Calendar, isDateOnly: Bool) throws -> [Date] {
+        if !bySetPos.isEmpty {
+            return try generateSubdailyByPeriod(from: start, through: end, calendar: calendar, isDateOnly: isDateOnly)
+        }
+
         var result: [Date] = []
         var current = start
         let component: Calendar.Component
@@ -180,6 +184,99 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
             current = next
         }
         return result
+    }
+
+    private func generateSubdailyByPeriod(from start: Date, through end: Date, calendar: Calendar, isDateOnly: Bool) throws -> [Date] {
+        var result: [Date] = []
+        let startPeriod = startOfSubdailyPeriod(containing: start, calendar: calendar)
+        var period = startOfSubdailyPeriod(containing: start, calendar: calendar)
+
+        while period <= end {
+            if matchesSubdailyPeriodInterval(period, startPeriod: startPeriod, calendar: calendar),
+               matchesDateFilters(period, start: start, calendar: calendar) {
+                let candidates = try subdailyCandidates(in: period, start: start, through: end, calendar: calendar, isDateOnly: isDateOnly)
+                result.append(contentsOf: selectedBySetPositions(from: candidates).filter { $0 >= start })
+            }
+            guard let next = calendar.date(byAdding: subdailyPeriodComponent, value: 1, to: period) else {
+                break
+            }
+            period = next
+        }
+
+        return result
+    }
+
+    private func subdailyCandidates(in period: Date, start: Date, through end: Date, calendar: Calendar, isDateOnly: Bool) throws -> [Date] {
+        guard !isDateOnly else {
+            return [period].filter { $0 <= end }
+        }
+
+        let startComponents = calendar.dateComponents([.minute, .second], from: start)
+        let periodComponents = calendar.dateComponents([.hour, .minute, .second], from: period)
+        let periodHour = periodComponents.hour ?? 0
+        let periodMinute = periodComponents.minute ?? 0
+        let periodSecond = periodComponents.second ?? 0
+
+        switch frequency {
+        case .hourly:
+            guard byHour.isEmpty || byHour.contains(periodHour) else {
+                return []
+            }
+            return subdailyDates(
+                on: period,
+                hours: [periodHour],
+                minutes: byMinute.isEmpty ? [startComponents.minute ?? 0] : byMinute,
+                seconds: bySecond.isEmpty ? [startComponents.second ?? 0] : bySecond,
+                calendar: calendar,
+                through: end
+            )
+        case .minutely:
+            guard (byHour.isEmpty || byHour.contains(periodHour)),
+                  (byMinute.isEmpty || byMinute.contains(periodMinute))
+            else {
+                return []
+            }
+            return subdailyDates(
+                on: period,
+                hours: [periodHour],
+                minutes: [periodMinute],
+                seconds: bySecond.isEmpty ? [startComponents.second ?? 0] : bySecond,
+                calendar: calendar,
+                through: end
+            )
+        case .secondly:
+            guard (byHour.isEmpty || byHour.contains(periodHour)),
+                  (byMinute.isEmpty || byMinute.contains(periodMinute)),
+                  (bySecond.isEmpty || bySecond.contains(periodSecond))
+            else {
+                return []
+            }
+            return [period].filter { $0 <= end }
+        default:
+            throw ICalendarValueError.unsupportedRecurrence(frequency.rawValue)
+        }
+    }
+
+    private func subdailyDates(
+        on period: Date,
+        hours: [Int],
+        minutes: [Int],
+        seconds: [Int],
+        calendar: Calendar,
+        through end: Date
+    ) -> [Date] {
+        var result: [Date] = []
+        for hour in hours.sorted() {
+            for minute in minutes.sorted() {
+                for second in seconds.sorted() {
+                    if let candidate = calendar.date(bySettingHour: hour, minute: minute, second: second, of: period),
+                       candidate <= end {
+                        result.append(candidate)
+                    }
+                }
+            }
+        }
+        return Array(Set(result)).sorted()
     }
 
     private func generateByDate(from start: Date, through end: Date, calendar: Calendar, isDateOnly: Bool) throws -> [Date] {
@@ -215,13 +312,7 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
             guard !bySetPos.isEmpty else {
                 return candidates.filter { $0 >= start }
             }
-            return Array(Set(bySetPos.compactMap { position in
-                let index = position > 0 ? position - 1 : candidates.count + position
-                guard candidates.indices.contains(index) else {
-                    return nil
-                }
-                return candidates[index]
-            })).sorted().filter { $0 >= start }
+            return selectedBySetPositions(from: candidates).filter { $0 >= start }
         }
     }
 
@@ -416,6 +507,54 @@ public struct ICalRecurrenceRule: Sendable, Equatable, Hashable {
         default:
             return calendar.startOfDay(for: date)
         }
+    }
+
+    private var subdailyPeriodComponent: Calendar.Component {
+        switch frequency {
+        case .hourly:
+            return .hour
+        case .minutely:
+            return .minute
+        default:
+            return .second
+        }
+    }
+
+    private func startOfSubdailyPeriod(containing date: Date, calendar: Calendar) -> Date {
+        let components: Set<Calendar.Component>
+        switch frequency {
+        case .hourly:
+            components = [.year, .month, .day, .hour]
+        case .minutely:
+            components = [.year, .month, .day, .hour, .minute]
+        default:
+            components = [.year, .month, .day, .hour, .minute, .second]
+        }
+        return calendar.date(from: calendar.dateComponents(components, from: date)) ?? date
+    }
+
+    private func matchesSubdailyPeriodInterval(_ period: Date, startPeriod: Date, calendar: Calendar) -> Bool {
+        switch frequency {
+        case .hourly:
+            return (calendar.dateComponents([.hour], from: startPeriod, to: period).hour ?? 0) % interval == 0
+        case .minutely:
+            return (calendar.dateComponents([.minute], from: startPeriod, to: period).minute ?? 0) % interval == 0
+        case .secondly:
+            return (calendar.dateComponents([.second], from: startPeriod, to: period).second ?? 0) % interval == 0
+        default:
+            return false
+        }
+    }
+
+    private func selectedBySetPositions(from candidates: [Date]) -> [Date] {
+        let sortedCandidates = Array(Set(candidates)).sorted()
+        return Array(Set(bySetPos.compactMap { position in
+            let index = position > 0 ? position - 1 : sortedCandidates.count + position
+            guard sortedCandidates.indices.contains(index) else {
+                return nil
+            }
+            return sortedCandidates[index]
+        })).sorted()
     }
 
 }
