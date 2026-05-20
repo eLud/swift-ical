@@ -9,6 +9,9 @@ struct ParsedContentLine: Sendable, Equatable {
 
 enum ContentLine {
     static func unfold(_ source: String, options: ParseOptions) throws -> [(line: String, sourceLine: Int)] {
+        if !options.allowsBareLF {
+            try validateStrictCRLF(source)
+        }
         var normalized = source.replacingOccurrences(of: "\r\n", with: "\n")
         normalized = normalized.replacingOccurrences(of: "\r", with: "\n")
         let rawLines = normalized.split(separator: "\n", omittingEmptySubsequences: false)
@@ -210,6 +213,35 @@ enum ContentLine {
     private static func validateSafeContentLineText(_ value: String, field: String) throws {
         if value.unicodeScalars.contains(where: { $0.value == 0x0A || $0.value == 0x0D }) {
             throw ICalendarSerializationError.unsafeContentLineText(field: field)
+        }
+    }
+
+    private static func validateStrictCRLF(_ source: String) throws {
+        var line = 1
+        var previousWasCR = false
+
+        for scalar in source.unicodeScalars {
+            if previousWasCR {
+                guard scalar.value == 0x0A else {
+                    throw ICalendarParseError.invalidContentLine(line: line, reason: "Bare CR line break")
+                }
+                previousWasCR = false
+                line += 1
+                continue
+            }
+
+            switch scalar.value {
+            case 0x0D:
+                previousWasCR = true
+            case 0x0A:
+                throw ICalendarParseError.invalidContentLine(line: line, reason: "Bare LF line break")
+            default:
+                continue
+            }
+        }
+
+        if previousWasCR {
+            throw ICalendarParseError.invalidContentLine(line: line, reason: "Bare CR line break")
         }
     }
 }

@@ -152,4 +152,18 @@ final class ICalendarParserTests: XCTestCase {
         XCTAssertEqual(omitted.events[0].component.firstProperty(.description)?.rawValue, "ab")
         XCTAssertThrowsError(try ICalendarDocument.parse(source, options: ParseOptions(controlCharacterPolicy: .error)))
     }
+
+    func testBareLineFeedsCanBeRejected() throws {
+        let bareLF = "BEGIN:VCALENDAR\nEND:VCALENDAR\n"
+        let strictCRLF = "BEGIN:VCALENDAR\r\nEND:VCALENDAR\r\n"
+
+        XCTAssertThrowsError(try ICalendarDocument.parse(bareLF, options: ParseOptions(allowsBareLF: false)))
+        XCTAssertNoThrow(try ICalendarDocument.parse(strictCRLF, options: ParseOptions(allowsBareLF: false)))
+    }
+
+    func testBareCarriageReturnsCanBeRejected() {
+        let bareCR = "BEGIN:VCALENDAR\rEND:VCALENDAR\r"
+
+        XCTAssertThrowsError(try ICalendarDocument.parse(bareCR, options: ParseOptions(allowsBareLF: false)))
+    }
 }
