@@ -104,3 +104,14 @@ public enum ICalendarRecurrenceError: Error, Sendable, Equatable, CustomStringCo
         }
     }
 }
+
+public enum ICalendarSerializationError: Error, Sendable, Equatable, CustomStringConvertible {
+    case unsafeContentLineText(field: String)
+
+    public var description: String {
+        switch self {
+        case .unsafeContentLineText(let field):
+            "Unsafe content-line text in \(field)"
+        }
+    }
+}

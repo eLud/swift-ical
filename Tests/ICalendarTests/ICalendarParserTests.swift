@@ -102,6 +102,38 @@ final class ICalendarParserTests: XCTestCase {
         XCTAssertEqual(try ICalendarDocument.parse(serialized), document)
     }
 
+    func testSerializationRejectsInjectedContentLines() {
+        let document = ICalendarDocument(components: [
+            ICalComponent(name: .vcalendar, children: [
+                ICalComponent(name: .vevent, properties: [
+                    ICalProperty(name: .known(.summary), rawValue: "Safe\r\nATTENDEE:mailto:evil@example.com")
+                ])
+            ])
+        ])
+
+        XCTAssertThrowsError(try document.serialized()) { error in
+            XCTAssertEqual(error as? ICalendarSerializationError, .unsafeContentLineText(field: "value"))
+        }
+    }
+
+    func testSerializationRejectsInjectedParameterValues() {
+        let document = ICalendarDocument(components: [
+            ICalComponent(name: .vcalendar, children: [
+                ICalComponent(name: .vevent, properties: [
+                    ICalProperty(
+                        name: .known(.summary),
+                        parameters: [ICalParameter(name: "ALTREP", values: ["cid:ok\nROLE=CHAIR"])],
+                        rawValue: "Safe"
+                    )
+                ])
+            ])
+        ])
+
+        XCTAssertThrowsError(try document.serialized()) { error in
+            XCTAssertEqual(error as? ICalendarSerializationError, .unsafeContentLineText(field: "parameter value"))
+        }
+    }
+
     func testRejectsMismatchedEnd() {
         let source = """
         BEGIN:VCALENDAR

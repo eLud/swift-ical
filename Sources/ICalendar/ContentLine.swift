@@ -76,11 +76,17 @@ enum ContentLine {
         )
     }
 
-    static func serialize(name: String, parameters: [ICalParameter], value: String, options: SerializationOptions) -> String {
+    static func serialize(name: String, parameters: [ICalParameter], value: String, options: SerializationOptions) throws -> String {
+        try validateSafeContentLineText(name, field: "name")
+        try validateSafeContentLineText(value, field: "value")
         var line = name.uppercased()
         for parameter in parameters {
+            try validateSafeContentLineText(parameter.name, field: "parameter name")
             line += ";\(parameter.name)="
-            line += parameter.values.map(serializeParameterValue).joined(separator: ",")
+            line += try parameter.values.map {
+                try validateSafeContentLineText($0, field: "parameter value")
+                return serializeParameterValue($0)
+            }.joined(separator: ",")
         }
         line += ":\(value)"
         guard options.foldsLines else {
@@ -199,6 +205,12 @@ enum ContentLine {
             return value
         }
         return "\"\(value.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\""))\""
+    }
+
+    private static func validateSafeContentLineText(_ value: String, field: String) throws {
+        if value.unicodeScalars.contains(where: { $0.value == 0x0A || $0.value == 0x0D }) {
+            throw ICalendarSerializationError.unsafeContentLineText(field: field)
+        }
     }
 }
 

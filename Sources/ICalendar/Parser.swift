@@ -60,21 +60,21 @@ struct ICalendarParser {
 }
 
 extension ICalComponent {
-    func serialized(options: SerializationOptions) -> String {
-        var output = ContentLine.serialize(name: "BEGIN", parameters: [], value: name.rawName, options: options)
+    func serialized(options: SerializationOptions) throws -> String {
+        var output = try ContentLine.serialize(name: "BEGIN", parameters: [], value: name.rawName, options: options)
         for property in properties {
-            output += property.serialized(options: options)
+            output += try property.serialized(options: options)
         }
         for child in children {
-            output += child.serialized(options: options)
+            output += try child.serialized(options: options)
         }
-        output += ContentLine.serialize(name: "END", parameters: [], value: name.rawName, options: options)
+        output += try ContentLine.serialize(name: "END", parameters: [], value: name.rawName, options: options)
         return output
     }
 }
 
 extension ICalProperty {
-    func serialized(options: SerializationOptions) -> String {
-        ContentLine.serialize(name: name.rawName, parameters: parameters, value: rawValue, options: options)
+    func serialized(options: SerializationOptions) throws -> String {
+        try ContentLine.serialize(name: name.rawName, parameters: parameters, value: rawValue, options: options)
     }
 }

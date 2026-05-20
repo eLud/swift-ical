@@ -12,7 +12,7 @@ public struct ICalendarDocument: Sendable, Equatable {
     }
 
     public func serialized(options: SerializationOptions = .default) throws -> String {
-        components.map { $0.serialized(options: options) }.joined()
+        try components.map { try $0.serialized(options: options) }.joined()
     }
 }
 

@@ -42,6 +42,13 @@ final class ICalendarValueTests: XCTestCase {
         XCTAssertEqual(ICalValue.decodeText("Hello\\nA\\,B\\;C\\\\D"), "Hello\nA,B;C\\D")
     }
 
+    func testEncodesTextValuesForSafeSerialization() {
+        XCTAssertEqual(
+            ICalValue.encodeText("Hello\nA,B;C\\D\rE"),
+            "Hello\\nA\\,B\\;C\\\\D\\nE"
+        )
+    }
+
     func testRejectsInvalidRecurrenceNumericSelectors() {
         let invalidRules = [
             "FREQ=DAILY;BYSECOND=61",

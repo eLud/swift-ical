@@ -245,6 +245,28 @@ public extension ICalTimeZoneResolving where Self == FoundationTimeZoneResolver 
 }
 
 public extension ICalValue {
+    static func encodeText(_ value: String) -> String {
+        let normalized = value
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+        var result = ""
+        for character in normalized {
+            switch character {
+            case "\n":
+                result += "\\n"
+            case "\\":
+                result += "\\\\"
+            case ",":
+                result += "\\,"
+            case ";":
+                result += "\\;"
+            default:
+                result.append(character)
+            }
+        }
+        return result
+    }
+
     static func decodeText(_ raw: String) -> String {
         var result = ""
         var isEscaped = false
