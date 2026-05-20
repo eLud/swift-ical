@@ -66,6 +66,43 @@ final class LibicalFixtureTests: XCTestCase {
         )
     }
 
+    func testSummarizesKnownRecurrenceGapCategories() throws {
+        let cases = try LibicalRecurrenceFixture.load(
+            Bundle.module.url(
+                forResource: "icalrecur_test",
+                withExtension: "txt"
+            ).unwrap()
+        )
+        let knownGaps = cases
+            .map { RecurrenceCompatibilityOutcome(fixture: $0, actual: try? $0.expandedInstances()) }
+            .filter { !$0.passes }
+
+        let categoryCounts = knownGaps.reduce(into: [RecurrenceGapCategory: Int]()) { counts, outcome in
+            for category in outcome.fixture.gapCategories {
+                counts[category, default: 0] += 1
+            }
+        }
+
+        XCTAssertEqual(
+            categoryCounts,
+            [
+                .yearlyFrequency: 44,
+                .unsortedOrDuplicateByList: 35,
+                .byWeekNumber: 29,
+                .dateOnlyStart: 26,
+                .bySetPosition: 16,
+                .negativeSelector: 16,
+                .timePartExpansion: 11,
+                .dailyFrequency: 9,
+                .monthlyFrequency: 6,
+                .hourlyFrequency: 5,
+                .weekdayOrdinalSelector: 4,
+                .minutelyFrequency: 2,
+                .weeklyFrequency: 2
+            ]
+        )
+    }
+
     private static let supportedRecurrenceCaseIDs: Set<String> = [
         "Yearly in June and July for 10 occurrences|FREQ=YEARLY;COUNT=10;BYMONTH=6,7|19970610T090000",
         "Every other year on January, February, and March for 10 occurrences|FREQ=YEARLY;INTERVAL=2;COUNT=10;BYMONTH=1,2,3|19970310T090000",
@@ -114,6 +151,49 @@ private struct LibicalRecurrenceFixture {
 
     var id: String {
         "\(description)|\(rule)|\(start)"
+    }
+
+    var gapCategories: Set<RecurrenceGapCategory> {
+        let fields = ruleFields
+        var result: Set<RecurrenceGapCategory> = []
+
+        if !start.contains("T") {
+            result.insert(.dateOnlyStart)
+        }
+        if fields["BYSETPOS"] != nil {
+            result.insert(.bySetPosition)
+        }
+        if fields["BYWEEKNO"] != nil {
+            result.insert(.byWeekNumber)
+        }
+        if fields.keys.contains(where: { ["BYHOUR", "BYMINUTE", "BYSECOND"].contains($0) }) {
+            result.insert(.timePartExpansion)
+        }
+        if hasNegativeSelector(in: fields) {
+            result.insert(.negativeSelector)
+        }
+        if fields["BYDAY", default: []].contains(where: { $0.contains(where: \.isNumber) }) {
+            result.insert(.weekdayOrdinalSelector)
+        }
+        if hasUnsortedOrDuplicateBYList(in: fields) {
+            result.insert(.unsortedOrDuplicateByList)
+        }
+        if let frequency = fields["FREQ"]?.first,
+           let category = RecurrenceGapCategory(frequency: frequency) {
+            result.insert(category)
+        }
+
+        return result
+    }
+
+    private var ruleFields: [String: [String]] {
+        rule.split(separator: ";").reduce(into: [String: [String]]()) { fields, field in
+            let parts = field.split(separator: "=", maxSplits: 1, omittingEmptySubsequences: false)
+            guard parts.count == 2 else {
+                return
+            }
+            fields[String(parts[0]).uppercased()] = parts[1].split(separator: ",").map(String.init)
+        }
     }
 
     static func load(_ url: URL) throws -> [LibicalRecurrenceFixture] {
@@ -207,6 +287,22 @@ private struct LibicalRecurrenceFixture {
             suffix
         )
     }
+
+    private func hasNegativeSelector(in fields: [String: [String]]) -> Bool {
+        fields.contains { key, values in
+            key.hasPrefix("BY") && values.contains { $0.hasPrefix("-") }
+        }
+    }
+
+    private func hasUnsortedOrDuplicateBYList(in fields: [String: [String]]) -> Bool {
+        fields.contains { key, values in
+            guard key.hasPrefix("BY"), values.count > 1 else {
+                return false
+            }
+            let normalized = values.map { $0.uppercased() }
+            return normalized != Array(Set(normalized)).sorted()
+        }
+    }
 }
 
 private struct RecurrenceCompatibilityOutcome {
@@ -215,6 +311,44 @@ private struct RecurrenceCompatibilityOutcome {
 
     var passes: Bool {
         actual == fixture.instances
+    }
+}
+
+private enum RecurrenceGapCategory: String, CaseIterable, Hashable {
+    case dateOnlyStart = "date-only DTSTART"
+    case bySetPosition = "BYSETPOS"
+    case byWeekNumber = "BYWEEKNO"
+    case timePartExpansion = "BYHOUR/BYMINUTE/BYSECOND"
+    case negativeSelector = "negative BY* selector"
+    case weekdayOrdinalSelector = "ordinal BYDAY"
+    case unsortedOrDuplicateByList = "unsorted or duplicate BY* list"
+    case secondlyFrequency = "FREQ=SECONDLY"
+    case minutelyFrequency = "FREQ=MINUTELY"
+    case hourlyFrequency = "FREQ=HOURLY"
+    case dailyFrequency = "FREQ=DAILY"
+    case weeklyFrequency = "FREQ=WEEKLY"
+    case monthlyFrequency = "FREQ=MONTHLY"
+    case yearlyFrequency = "FREQ=YEARLY"
+
+    init?(frequency: String) {
+        switch frequency.uppercased() {
+        case "SECONDLY":
+            self = .secondlyFrequency
+        case "MINUTELY":
+            self = .minutelyFrequency
+        case "HOURLY":
+            self = .hourlyFrequency
+        case "DAILY":
+            self = .dailyFrequency
+        case "WEEKLY":
+            self = .weeklyFrequency
+        case "MONTHLY":
+            self = .monthlyFrequency
+        case "YEARLY":
+            self = .yearlyFrequency
+        default:
+            return nil
+        }
     }
 }
 
