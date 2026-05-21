@@ -4,6 +4,27 @@
 
 The current implementation focuses on RFC 5545 iCalendar parsing, lossless component preservation, serialization, typed event access, and recurrence expansion.
 
+## Alpha Status
+
+`swift-ical` is approaching its first alpha release. The current API is useful
+for parsing, inspecting, building, serializing, validating, and expanding common
+RFC 5545 calendar data, but it should still be treated as pre-1.0.
+
+Supported today:
+
+- Lossless `.ics` parsing and serialization with unknown properties, parameters, components, and `X-` extensions preserved.
+- Typed access for common `VEVENT` fields.
+- Builder APIs for timed events, Swift `Date` inputs, all-day events, recurrence dates, exception dates, organizer, attendees, status, transparency, class, URL, and common text fields.
+- Recurrence expansion for common RFC 5545 rules, including `RDATE` and `EXDATE`, with guardrails for large expansions.
+- Non-blocking structural validation via `validate()`.
+
+Known limitations before a stable `1.0`:
+
+- Parsed `VTIMEZONE` components are preserved, but custom timezone transition expansion is not complete yet; Foundation-backed IANA timezone lookup is the primary path today.
+- Typed convenience APIs currently focus on `VCALENDAR` and `VEVENT`; broader first-class builders/views for `VTODO`, `VJOURNAL`, `VFREEBUSY`, and `VALARM` can follow.
+- Validation is intentionally lightweight and structural. Successful parsing does not mean the document is fully semantically valid for every RFC 5545 method or scheduling workflow.
+- The fixture suite covers RFC examples and vendored libical cases, but more scrubbed real-world exports from Apple Calendar, Google Calendar, Outlook, Fastmail, Nextcloud, and similar clients would improve interop confidence.
+
 ## Usage
 
 ```swift
