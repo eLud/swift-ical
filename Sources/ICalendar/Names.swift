@@ -5,6 +5,7 @@ public enum KnownICalProperty: String, CaseIterable, Sendable, Hashable {
     case attendee = "ATTENDEE"
     case categories = "CATEGORIES"
     case calscale = "CALSCALE"
+    case classification = "CLASS"
     case completed = "COMPLETED"
     case created = "CREATED"
     case description = "DESCRIPTION"

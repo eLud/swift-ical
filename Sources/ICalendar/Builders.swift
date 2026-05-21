@@ -67,6 +67,92 @@ public enum ICalDateTimeEncoding: Sendable, Equatable {
     }
 }
 
+public enum ICalEventStatus: Sendable, Equatable {
+    case tentative
+    case confirmed
+    case cancelled
+    case custom(String)
+
+    public var rawValue: String {
+        switch self {
+        case .tentative:
+            "TENTATIVE"
+        case .confirmed:
+            "CONFIRMED"
+        case .cancelled:
+            "CANCELLED"
+        case .custom(let value):
+            value.uppercased()
+        }
+    }
+}
+
+public enum ICalEventTransparency: Sendable, Equatable {
+    case opaque
+    case transparent
+    case custom(String)
+
+    public var rawValue: String {
+        switch self {
+        case .opaque:
+            "OPAQUE"
+        case .transparent:
+            "TRANSPARENT"
+        case .custom(let value):
+            value.uppercased()
+        }
+    }
+}
+
+public enum ICalEventClassification: Sendable, Equatable {
+    case publicEvent
+    case privateEvent
+    case confidential
+    case custom(String)
+
+    public var rawValue: String {
+        switch self {
+        case .publicEvent:
+            "PUBLIC"
+        case .privateEvent:
+            "PRIVATE"
+        case .confidential:
+            "CONFIDENTIAL"
+        case .custom(let value):
+            value.uppercased()
+        }
+    }
+}
+
+public struct ICalCalendarUser: Sendable, Equatable {
+    public var uri: String
+    public var commonName: String?
+    public var parameters: [ICalParameter]
+
+    public init(uri: String, commonName: String? = nil, parameters: [ICalParameter] = []) {
+        self.uri = uri
+        self.commonName = commonName
+        self.parameters = parameters
+    }
+
+    public static func mailto(
+        _ emailAddress: String,
+        commonName: String? = nil,
+        parameters: [ICalParameter] = []
+    ) -> ICalCalendarUser {
+        let uri = emailAddress.lowercased().hasPrefix("mailto:") ? emailAddress : "mailto:\(emailAddress)"
+        return ICalCalendarUser(uri: uri, commonName: commonName, parameters: parameters)
+    }
+
+    var propertyParameters: [ICalParameter] {
+        var values = parameters
+        if let commonName {
+            values.insert(ICalParameter(name: "CN", values: [commonName]), at: 0)
+        }
+        return values
+    }
+}
+
 public struct ICalEventBuilder: Sendable, Equatable {
     public var uid: String
     public var start: ICalDateTime
@@ -77,6 +163,12 @@ public struct ICalEventBuilder: Sendable, Equatable {
     public var description: String?
     public var location: String?
     public var categories: [String]
+    public var url: String?
+    public var status: ICalEventStatus?
+    public var transparency: ICalEventTransparency?
+    public var classification: ICalEventClassification?
+    public var organizer: ICalCalendarUser?
+    public var attendees: [ICalCalendarUser]
     public var recurrenceRules: [ICalRecurrenceRule]
     public var recurrenceDates: [ICalDateTime]
     public var exceptionDates: [ICalDateTime]
@@ -92,6 +184,12 @@ public struct ICalEventBuilder: Sendable, Equatable {
         description: String? = nil,
         location: String? = nil,
         categories: [String] = [],
+        url: String? = nil,
+        status: ICalEventStatus? = nil,
+        transparency: ICalEventTransparency? = nil,
+        classification: ICalEventClassification? = nil,
+        organizer: ICalCalendarUser? = nil,
+        attendees: [ICalCalendarUser] = [],
         recurrenceRules: [ICalRecurrenceRule] = [],
         recurrenceDates: [ICalDateTime] = [],
         exceptionDates: [ICalDateTime] = [],
@@ -106,6 +204,12 @@ public struct ICalEventBuilder: Sendable, Equatable {
         self.description = description
         self.location = location
         self.categories = categories
+        self.url = url
+        self.status = status
+        self.transparency = transparency
+        self.classification = classification
+        self.organizer = organizer
+        self.attendees = attendees
         self.recurrenceRules = recurrenceRules
         self.recurrenceDates = recurrenceDates
         self.exceptionDates = exceptionDates
@@ -123,6 +227,12 @@ public struct ICalEventBuilder: Sendable, Equatable {
         description: String? = nil,
         location: String? = nil,
         categories: [String] = [],
+        url: String? = nil,
+        status: ICalEventStatus? = nil,
+        transparency: ICalEventTransparency? = nil,
+        classification: ICalEventClassification? = nil,
+        organizer: ICalCalendarUser? = nil,
+        attendees: [ICalCalendarUser] = [],
         recurrenceRules: [ICalRecurrenceRule] = [],
         recurrenceDates: [Date] = [],
         exceptionDates: [Date] = [],
@@ -139,6 +249,12 @@ public struct ICalEventBuilder: Sendable, Equatable {
             description: description,
             location: location,
             categories: categories,
+            url: url,
+            status: status,
+            transparency: transparency,
+            classification: classification,
+            organizer: organizer,
+            attendees: attendees,
             recurrenceRules: recurrenceRules,
             recurrenceDates: recurrenceDates.map(encode),
             exceptionDates: exceptionDates.map(encode),
@@ -154,6 +270,12 @@ public struct ICalEventBuilder: Sendable, Equatable {
         description: String? = nil,
         location: String? = nil,
         categories: [String] = [],
+        url: String? = nil,
+        status: ICalEventStatus? = nil,
+        transparency: ICalEventTransparency? = nil,
+        classification: ICalEventClassification? = nil,
+        organizer: ICalCalendarUser? = nil,
+        attendees: [ICalCalendarUser] = [],
         recurrenceRules: [ICalRecurrenceRule] = [],
         recurrenceDates: [ICalDate] = [],
         exceptionDates: [ICalDate] = [],
@@ -168,6 +290,12 @@ public struct ICalEventBuilder: Sendable, Equatable {
             description: description,
             location: location,
             categories: categories,
+            url: url,
+            status: status,
+            transparency: transparency,
+            classification: classification,
+            organizer: organizer,
+            attendees: attendees,
             recurrenceRules: recurrenceRules,
             recurrenceDates: recurrenceDates,
             exceptionDates: exceptionDates,
@@ -185,6 +313,12 @@ public struct ICalEventBuilder: Sendable, Equatable {
         description: String? = nil,
         location: String? = nil,
         categories: [String] = [],
+        url: String? = nil,
+        status: ICalEventStatus? = nil,
+        transparency: ICalEventTransparency? = nil,
+        classification: ICalEventClassification? = nil,
+        organizer: ICalCalendarUser? = nil,
+        attendees: [ICalCalendarUser] = [],
         recurrenceRules: [ICalRecurrenceRule] = [],
         recurrenceDates: [ICalDate] = [],
         exceptionDates: [ICalDate] = [],
@@ -200,6 +334,12 @@ public struct ICalEventBuilder: Sendable, Equatable {
             description: description,
             location: location,
             categories: categories,
+            url: url,
+            status: status,
+            transparency: transparency,
+            classification: classification,
+            organizer: organizer,
+            attendees: attendees,
             recurrenceRules: recurrenceRules,
             recurrenceDates: recurrenceDates.map(ICalDateTime.allDay),
             exceptionDates: exceptionDates.map(ICalDateTime.allDay),
@@ -244,6 +384,24 @@ public struct ICalEventBuilder: Sendable, Equatable {
                 )
             )
         }
+        if let url {
+            properties.append(ICalProperty(name: .known(.url), rawValue: url))
+        }
+        if let status {
+            properties.append(ICalProperty(name: .known(.status), rawValue: status.rawValue))
+        }
+        if let transparency {
+            properties.append(ICalProperty(name: .known(.transp), rawValue: transparency.rawValue))
+        }
+        if let classification {
+            properties.append(ICalProperty(name: .known(.classification), rawValue: classification.rawValue))
+        }
+        if let organizer {
+            properties.append(calendarUserProperty(.organizer, user: organizer))
+        }
+        properties.append(contentsOf: attendees.map {
+            calendarUserProperty(.attendee, user: $0)
+        })
         properties.append(contentsOf: recurrenceRules.map {
             ICalProperty(name: .known(.rrule), rawValue: $0.rawValue)
         })
@@ -390,6 +548,10 @@ private func dateOrDateTimeProperty(_ name: KnownICalProperty, value: ICalDateTi
         parameters: dateOrDateTimeParameters(for: value),
         rawValue: value.rawValue
     )
+}
+
+private func calendarUserProperty(_ name: KnownICalProperty, user: ICalCalendarUser) -> ICalProperty {
+    ICalProperty(name: .known(name), parameters: user.propertyParameters, rawValue: user.uri)
 }
 
 private func dateCollectionProperties(_ name: KnownICalProperty, values: [ICalDateTime]) -> [ICalProperty] {

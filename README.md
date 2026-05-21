@@ -71,6 +71,24 @@ let document = try ICalendarBuilder(
 ).document()
 ```
 
+Common `VEVENT` fields also have typed builder support:
+
+```swift
+let event = ICalEventBuilder(
+    uid: "event-789",
+    startDate: start,
+    summary: "Planning",
+    url: "https://example.com/events/planning",
+    status: .confirmed,
+    transparency: .opaque,
+    classification: .privateEvent,
+    organizer: .mailto("owner@example.com", commonName: "Calendar Owner"),
+    attendees: [
+        .mailto("ada@example.com", commonName: "Ada Lovelace")
+    ]
+)
+```
+
 ## Validation
 
 Parsing is intentionally lossless and permissive: unknown properties, custom

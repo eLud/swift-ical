@@ -256,6 +256,50 @@ final class ICalendarBuilderTests: XCTestCase {
         }
     }
 
+    func testBuilderSupportsCommonTypedEventFields() throws {
+        let document = try ICalendarBuilder(
+            events: [
+                ICalEventBuilder(
+                    uid: "builder-typed-fields",
+                    start: try ICalDateTime.parse("20260519T120000Z"),
+                    stamp: try ICalDateTime.parse("20260501T090000Z"),
+                    summary: "Planning",
+                    url: "https://example.com/events/planning",
+                    status: .confirmed,
+                    transparency: .opaque,
+                    classification: .privateEvent,
+                    organizer: .mailto("organizer@example.com", commonName: "Calendar Owner"),
+                    attendees: [
+                        .mailto(
+                            "ada@example.com",
+                            commonName: "Ada Lovelace",
+                            parameters: [
+                                ICalParameter(name: "ROLE", values: ["REQ-PARTICIPANT"]),
+                                ICalParameter(name: "PARTSTAT", values: ["ACCEPTED"])
+                            ]
+                        )
+                    ]
+                )
+            ]
+        ).document()
+
+        let serialized = try document.serialized()
+        let reparsedEvent = try XCTUnwrap(try reparsed(serialized).events.first)
+        let organizer = try XCTUnwrap(reparsedEvent.component.firstProperty(.organizer))
+        let attendee = try XCTUnwrap(reparsedEvent.component.properties(.attendee).first)
+
+        XCTAssertTrue(serialized.contains("URL:https://example.com/events/planning"))
+        XCTAssertTrue(serialized.contains("STATUS:CONFIRMED"))
+        XCTAssertTrue(serialized.contains("TRANSP:OPAQUE"))
+        XCTAssertTrue(serialized.contains("CLASS:PRIVATE"))
+        XCTAssertEqual(organizer.rawValue, "mailto:organizer@example.com")
+        XCTAssertEqual(organizer.firstParameter("CN")?.values, ["Calendar Owner"])
+        XCTAssertEqual(attendee.rawValue, "mailto:ada@example.com")
+        XCTAssertEqual(attendee.firstParameter("CN")?.values, ["Ada Lovelace"])
+        XCTAssertEqual(attendee.firstParameter("ROLE")?.values, ["REQ-PARTICIPANT"])
+        XCTAssertEqual(attendee.firstParameter("PARTSTAT")?.values, ["ACCEPTED"])
+    }
+
     private func dateRange(_ start: String, _ end: String) throws -> (start: Date, end: Date) {
         (
             try ICalDateTime.parse(start).dateValue(timeZoneResolver: FoundationTimeZoneResolver()),
