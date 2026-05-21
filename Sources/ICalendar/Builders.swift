@@ -2,11 +2,14 @@ import Foundation
 
 public enum ICalendarBuilderError: Error, Sendable, Equatable, CustomStringConvertible {
     case mutuallyExclusiveEventEndAndDuration
+    case invalidAllDayDateRange(start: ICalDate, end: ICalDate)
 
     public var description: String {
         switch self {
         case .mutuallyExclusiveEventEndAndDuration:
             "VEVENT builder cannot set both DTEND and DURATION"
+        case .invalidAllDayDateRange(let start, let end):
+            "All-day VEVENT DTEND must be later than DTSTART; got \(start.rawValue) and \(end.rawValue)"
         }
     }
 }
@@ -143,9 +146,73 @@ public struct ICalEventBuilder: Sendable, Equatable {
         )
     }
 
+    public init(
+        uid: String,
+        allDayDate: ICalDate,
+        stampDate: Date = Date(),
+        summary: String? = nil,
+        description: String? = nil,
+        location: String? = nil,
+        categories: [String] = [],
+        recurrenceRules: [ICalRecurrenceRule] = [],
+        recurrenceDates: [ICalDate] = [],
+        exceptionDates: [ICalDate] = [],
+        additionalProperties: [ICalProperty] = []
+    ) {
+        self.init(
+            uid: uid,
+            allDayStart: allDayDate,
+            allDayEnd: nil,
+            stampDate: stampDate,
+            summary: summary,
+            description: description,
+            location: location,
+            categories: categories,
+            recurrenceRules: recurrenceRules,
+            recurrenceDates: recurrenceDates,
+            exceptionDates: exceptionDates,
+            additionalProperties: additionalProperties
+        )
+    }
+
+    public init(
+        uid: String,
+        allDayStart: ICalDate,
+        allDayEnd: ICalDate? = nil,
+        stampDate: Date = Date(),
+        duration: ICalDuration? = nil,
+        summary: String? = nil,
+        description: String? = nil,
+        location: String? = nil,
+        categories: [String] = [],
+        recurrenceRules: [ICalRecurrenceRule] = [],
+        recurrenceDates: [ICalDate] = [],
+        exceptionDates: [ICalDate] = [],
+        additionalProperties: [ICalProperty] = []
+    ) {
+        self.init(
+            uid: uid,
+            start: .allDay(allDayStart),
+            stamp: .utc(stampDate),
+            end: allDayEnd.map(ICalDateTime.allDay),
+            duration: duration,
+            summary: summary,
+            description: description,
+            location: location,
+            categories: categories,
+            recurrenceRules: recurrenceRules,
+            recurrenceDates: recurrenceDates.map(ICalDateTime.allDay),
+            exceptionDates: exceptionDates.map(ICalDateTime.allDay),
+            additionalProperties: additionalProperties
+        )
+    }
+
     public func component() throws -> ICalComponent {
         if end != nil && duration != nil {
             throw ICalendarBuilderError.mutuallyExclusiveEventEndAndDuration
+        }
+        if let end, start.kind == .date, end.kind == .date, end.date <= start.date {
+            throw ICalendarBuilderError.invalidAllDayDateRange(start: start.date, end: end.date)
         }
 
         var properties: [ICalProperty] = [
@@ -189,6 +256,10 @@ public struct ICalEventBuilder: Sendable, Equatable {
 }
 
 public extension ICalDateTime {
+    static func allDay(_ date: ICalDate) -> ICalDateTime {
+        ICalDateTime(date: date, hour: 0, minute: 0, second: 0, kind: .date)
+    }
+
     static func utc(_ date: Date) -> ICalDateTime {
         dateTime(from: date, timeZone: TimeZone(secondsFromGMT: 0)!, kind: .utc)
     }

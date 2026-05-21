@@ -193,11 +193,78 @@ final class ICalendarBuilderTests: XCTestCase {
         XCTAssertTrue(serialized.contains("DTSTAMP:20260501T090000Z"))
     }
 
+    func testBuilderSupportsSingleDayAllDayEvents() throws {
+        let document = try ICalendarBuilder(
+            events: [
+                ICalEventBuilder(
+                    uid: "builder-all-day-single",
+                    allDayDate: try ICalDate.parse("20260521"),
+                    stampDate: try instant("2026-05-01T09:00:00Z"),
+                    summary: "Anniversary",
+                    recurrenceDates: [try ICalDate.parse("20270521")],
+                    exceptionDates: [try ICalDate.parse("20280521")]
+                )
+            ]
+        ).document()
+
+        let serialized = try document.serialized()
+        let event = try XCTUnwrap(document.events.first)
+
+        XCTAssertTrue(serialized.contains("DTSTAMP:20260501T090000Z"))
+        XCTAssertTrue(serialized.contains("DTSTART;VALUE=DATE:20260521"))
+        XCTAssertTrue(serialized.contains("RDATE;VALUE=DATE:20270521"))
+        XCTAssertTrue(serialized.contains("EXDATE;VALUE=DATE:20280521"))
+        XCTAssertFalse(serialized.contains("DTEND;VALUE=DATE"))
+        XCTAssertEqual(event.start?.kind, .date)
+        XCTAssertEqual(try reparsed(serialized), document)
+    }
+
+    func testBuilderSupportsMultiDayAllDayEventsWithExclusiveEndDate() throws {
+        let document = try ICalendarBuilder(
+            events: [
+                ICalEventBuilder(
+                    uid: "builder-all-day-range",
+                    allDayStart: try ICalDate.parse("20260521"),
+                    allDayEnd: try ICalDate.parse("20260524"),
+                    stampDate: try instant("2026-05-01T09:00:00Z"),
+                    summary: "Long weekend"
+                )
+            ]
+        ).document()
+
+        let serialized = try document.serialized()
+
+        XCTAssertTrue(serialized.contains("DTSTART;VALUE=DATE:20260521"))
+        XCTAssertTrue(serialized.contains("DTEND;VALUE=DATE:20260524"))
+        XCTAssertEqual(try ICalendarDocument.parse(serialized), document)
+    }
+
+    func testBuilderRejectsAllDayEndDateBeforeOrEqualToStartDate() throws {
+        XCTAssertThrowsError(try ICalEventBuilder(
+            uid: "builder-all-day-invalid",
+            allDayStart: try ICalDate.parse("20260521"),
+            allDayEnd: try ICalDate.parse("20260521"),
+            stampDate: try instant("2026-05-01T09:00:00Z")
+        ).component()) { error in
+            XCTAssertEqual(
+                error as? ICalendarBuilderError,
+                .invalidAllDayDateRange(
+                    start: ICalDate(year: 2026, month: 5, day: 21),
+                    end: ICalDate(year: 2026, month: 5, day: 21)
+                )
+            )
+        }
+    }
+
     private func dateRange(_ start: String, _ end: String) throws -> (start: Date, end: Date) {
         (
             try ICalDateTime.parse(start).dateValue(timeZoneResolver: FoundationTimeZoneResolver()),
             try ICalDateTime.parse(end).dateValue(timeZoneResolver: FoundationTimeZoneResolver())
         )
+    }
+
+    private func reparsed(_ serialized: String) throws -> ICalendarDocument {
+        try ICalendarDocument.parse(serialized)
     }
 
     private func instant(_ value: String) throws -> Date {

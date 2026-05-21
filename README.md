@@ -57,6 +57,20 @@ let document = try ICalendarBuilder(
 ).document()
 ```
 
+All-day events can be built with date-only values:
+
+```swift
+let document = try ICalendarBuilder(
+    events: [
+        ICalEventBuilder(
+            uid: "anniversary-1",
+            allDayDate: ICalDate(year: 2026, month: 5, day: 21),
+            summary: "Anniversary"
+        )
+    ]
+).document()
+```
+
 ## Validation
 
 Parsing is intentionally lossless and permissive: unknown properties, custom
